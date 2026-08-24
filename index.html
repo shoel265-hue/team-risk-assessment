@@ -2057,6 +2057,20 @@
     window.onload = async () => {
         initChart();
         loadSavedData();
+        
+        // 💡 통합 포털에서 전달된 URL 파라미터(team, dept 등)를 읽어와 접속 팀 드롭다운에 강제 고정
+        const urlParams = new URLSearchParams(window.location.search);
+        const teamParam = urlParams.get('team') || urlParams.get('dept') || urlParams.get('forceTeam');
+        if (teamParam) {
+            const teamSelect = document.getElementById('current-team-select');
+            for (let i = 0; i < teamSelect.options.length; i++) {
+                if (teamSelect.options[i].value === teamParam) {
+                    teamSelect.value = teamParam;
+                    break;
+                }
+            }
+        }
+
         await changeTeam();
         calcStdScore(); 
         initCanvas('Before'); initCanvas('After');
