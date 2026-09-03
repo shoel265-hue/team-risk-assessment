@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>통합 위험성평가 관리 시스템 (보안 완벽 차단 모드)</title>
     
-    <!-- 🛡️ 최상단 강제 보안 스크립트 (우클릭, F12, 소스보기 즉시 차단) -->
+    <!-- 🛡️ 최상단 강제 보안 스크립트 -->
     <script>
       window.addEventListener('contextmenu', function(e) {
           e.preventDefault();
@@ -27,9 +27,8 @@
       }, true);
     </script>
 
-    <!-- 기존 스크립트 -->
+    <!-- 기존 라이브러리 스크립트 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <!-- 파이어베이스 및 파이어스토어 스크립트 -->
@@ -73,8 +72,8 @@
             user-select: auto;
         }
 
-        body { background-color: var(--bg-color); color: var(--text-main); padding: 20px; line-height: 1.6; }
-        .container { max-width: 1200px; margin: 0 auto; }
+        body { background-color: var(--bg-color); color: var(--text-main); padding: 20px; line-height: 1.5; }
+        .container { max-width: 1200px; margin: 0 auto; width: 100%; }
 
         #backup-readonly-banner {
             display: none;
@@ -114,20 +113,23 @@
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 20px;
             text-align: center; border-top: 6px solid var(--primary); position: relative;
         }
-        .main-header h1 { font-size: 2rem; color: var(--primary); margin-bottom: 8px; }
+        .main-header h1 { font-size: 2.4rem; color: var(--primary); margin-bottom: 6px; font-weight: 800; letter-spacing: -0.5px; }
+        .main-header p { font-size: 1rem; color: var(--text-muted); }
         .header-titles { text-align: center; width: 100%; }
 
+        /* 💡 결재란: '결' 글자 칸은 좁게(0.7cm), 담당·팀장·소장 칸은 넓게(각 1.9cm) */
         .approval-box {
-            display: none; border: 1.5px solid #0f172a; background: white; border-collapse: collapse;
-            font-size: 11px; text-align: center; width: 6cm !important; table-layout: fixed;
+            display: none; border: 2px solid #0f172a; background: white; border-collapse: collapse;
+            font-size: 12px; text-align: center; width: 6.4cm !important; table-layout: fixed;
         }
-        .approval-box th, .approval-box td { border: 1px solid #0f172a; padding: 3px 2px; color: #0f172a; font-weight: bold; }
-        .approval-box th { background-color: #f8fafc; width: 1.2cm !important; }
-        .approval-box td.sign-cell { height: 45px !important; width: 1.6cm !important; }
+        .approval-box th, .approval-box td { border: 1.5px solid #0f172a; padding: 4px 2px; color: #0f172a; font-weight: bold; }
+        .approval-box th.col-title { background-color: #f8fafc; width: 0.7cm !important; font-size: 12px; }
+        .approval-box th.col-sign { background-color: #f8fafc; width: 1.9cm !important; font-size: 12px; }
+        .approval-box td.sign-cell { height: 50px !important; width: 1.9cm !important; }
 
         .top-action-bar { 
             display: flex; justify-content: space-between; align-items: center; 
-            gap: 10px; margin-bottom: 24px; flex-wrap: wrap;
+            gap: 10px; margin-bottom: 20px; flex-wrap: wrap;
         }
         .action-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
@@ -156,10 +158,10 @@
         }
 
         .section-divider { 
-            margin: 40px 0 20px 0; padding-bottom: 12px; border-bottom: 3px solid var(--primary); 
+            margin: 35px 0 15px 0; padding-bottom: 10px; border-bottom: 3px solid var(--primary); 
             display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 10px;
         }
-        .section-divider h2 { font-size: 1.5rem; color: var(--text-main); margin: 0; }
+        .section-divider h2 { font-size: 1.4rem; color: var(--text-main); margin: 0; }
         
         .card { background-color: var(--card-bg); padding: 24px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 24px; border: 1px solid var(--border); }
         .card-title { font-size: 1.2rem; font-weight: bold; color: var(--primary); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
@@ -167,7 +169,7 @@
         .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
         .form-group { display: flex; flex-direction: column; gap: 6px; }
         .form-group label { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
-        input, select, textarea { padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95rem; outline: none; }
+        input, select, textarea { padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95rem; outline: none; }
         input:focus, select:focus, textarea:focus { border-color: var(--secondary); }
         input[readonly] { background-color: var(--bg-color); font-weight: bold; text-align: center; }
         
@@ -178,12 +180,13 @@
 
         .score-tag {
             display: inline-block;
-            min-width: 32px;
-            padding: 4px 10px;
+            min-width: 30px;
+            padding: 4px 8px;
             border-radius: 4px;
             color: #ffffff !important;
             font-weight: bold;
             text-align: center;
+            font-size: 0.85rem;
         }
 
         .dashboard-wrapper {
@@ -191,7 +194,7 @@
             border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid var(--border); margin-bottom: 16px;
             flex-wrap: wrap;
         }
-        .chart-container { width: 140px; height: 140px; position: relative; }
+        .chart-container { width: 130px; height: 130px; position: relative; }
         .summary-stats-col { display: flex; flex-direction: column; gap: 10px; }
         .summary-badge { padding: 8px 16px; border-radius: 20px; color: white; font-weight: bold; font-size: 0.9rem; display: flex; align-items: center; gap: 6px; width: fit-content;}
         .badge-high { background-color: #ef4444; }
@@ -199,10 +202,10 @@
         .badge-low { background-color: #10b981; }
 
         .matrix-guide-card {
-            background: white; border: 1px solid var(--border); border-radius: 12px; padding: 18px 22px;
+            background: white; border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px;
             margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); page-break-inside: avoid;
         }
-        .matrix-guide-card h3 { font-size: 1rem; color: var(--primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+        .matrix-guide-card h3 { font-size: 1rem; color: var(--primary); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
         .matrix-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 0.85rem; }
         @media (max-width: 768px) { .matrix-grid { grid-template-columns: 1fr; } }
         .matrix-guide-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; text-align: center; margin-top: 6px; }
@@ -211,17 +214,61 @@
 
         .table-controls { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; margin-bottom: 12px; flex-wrap: wrap; gap: 12px; }
 
-        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
-        th { background-color: var(--bg-color); color: var(--text-muted); padding: 12px; border-bottom: 2px solid var(--border); white-space: nowrap; }
-        td { padding: 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem; }
+        th { background-color: var(--bg-color); color: var(--text-muted); padding: 8px 6px; border-bottom: 2px solid var(--border); white-space: nowrap; }
+        td { padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 
-        .inline-input { width: 100%; padding: 6px 8px; border: 1px solid var(--secondary); border-radius: 4px; font-size: 0.85rem; }
-        .inline-select { padding: 6px 4px; border: 1px solid var(--secondary); border-radius: 4px; font-size: 0.85rem; }
+        .safety-cell-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            justify-content: space-between;
+        }
+        .safety-measure-summary {
+            max-width: 120px;
+            max-height: 45px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            white-space: pre-wrap;
+            font-size: 0.8rem;
+        }
+        .btn-view-detail {
+            background-color: #f0fdf4;
+            color: #047857;
+            border: 1px solid #10b981;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .btn-view-detail:hover {
+            background-color: #dcfce7;
+        }
+
+        #detailModal {
+            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(15, 23, 42, 0.6); z-index: 999999; align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: white; width: 600px; max-width: 90%; padding: 24px; border-radius: 12px;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); display: flex; flex-direction: column; gap: 14px;
+        }
+        .modal-content h3 { color: var(--primary); font-size: 1.2rem; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+        .modal-content textarea { width: 100%; height: 220px; padding: 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95rem; resize: vertical; line-height: 1.5; background: #fff; }
+
+        .inline-input { width: 100%; padding: 6px 8px; border: 1px solid var(--secondary); border-radius: 4px; font-size: 0.85rem; background: white; }
+        .inline-textarea { width: 100%; height: 75px; padding: 6px 8px; border: 1px solid var(--secondary); border-radius: 4px; font-size: 0.85rem; resize: vertical; background: white; }
+        .inline-select { padding: 6px 4px; border: 1px solid var(--secondary); border-radius: 4px; font-size: 0.85rem; background: white; }
 
         .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; background: #f8fafc; padding: 16px; border-radius: 8px; margin-bottom: 20px; }
         @media (max-width: 768px) { .compare-grid { grid-template-columns: 1fr; } }
         .compare-col { background: white; padding: 16px; border-radius: 8px; border: 1px solid var(--border); }
-        .compare-title { font-weight: bold; margin-bottom: 12px; text-align: center; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; font-size:1.1rem; }
+        .compare-title { font-weight: bold; margin-bottom: 12px; text-align: center; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; font-size: 1.1rem; }
         
         .canvas-wrapper { position: relative; width: 100%; background: #f8fafc; border-radius: 8px; overflow: hidden; display: none; margin-top: 10px; border: 1px solid var(--border); }
         .draw-tools { display: flex; gap: 6px; padding: 8px; background: #f1f5f9; border-bottom: 1px solid var(--border); justify-content: center; flex-wrap: wrap; align-items: center; }
@@ -285,10 +332,10 @@
         .opinion-label { font-weight: bold; color: var(--text-muted); font-size: 0.8rem; margin-bottom: 2px; }
         .opinion-text { background: #f8fafc; padding: 10px 12px; border-radius: 6px; border: 1px solid #e2e8f0; white-space: pre-wrap; }
 
-        .status-badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; }
+        .status-badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; white-space: nowrap; }
         .status-pending { background: var(--warning-light); color: #b45309; border: 1px solid var(--warning); }
         .status-inprogress { background: #e0f2fe; color: #0369a1; border: 1px solid #38bdf8; }
-        .status-completed { background: var(--success-light); color: #047857; border: 1px solid var(--success); }
+        .status-completed { background: var(--success-light); color: #047857; border: 1px solid #10b981; }
 
         .tag-opinion {
             background-color: #0f766e; color: white !important; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; margin-right: 4px; font-weight: bold;
@@ -299,32 +346,37 @@
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
-            @page { size: A4 portrait; margin: 10mm; }
-            body { background-color: white !important; padding: 0 !important; margin: 0 !important; font-size: 11px !important; }
+            @page { size: A4 portrait; margin: 8mm; }
+            body { background-color: white !important; padding: 0 !important; margin: 0 !important; font-size: 10.5px !important; }
             .no-print { display: none !important; }
             .container { max-width: 100% !important; width: 100% !important; margin: 0 !important; }
             
+            .btn-view-detail { display: none !important; }
+            .safety-cell-wrapper { display: block !important; }
+            .safety-measure-summary {
+                max-height: none !important;
+                overflow: visible !important;
+                display: block !important;
+                -webkit-line-clamp: unset !important;
+                white-space: pre-wrap !important;
+            }
+
             .main-header {
                 display: flex !important; justify-content: space-between !important; align-items: flex-start !important;
                 box-shadow: none !important; border: none !important; border-bottom: 2px solid #000 !important;
-                border-radius: 0 !important; padding: 0 0 15px 0 !important; margin-bottom: 15px !important; background: transparent !important;
+                border-radius: 0 !important; padding: 0 0 12px 0 !important; margin-bottom: 12px !important; background: transparent !important;
             }
             .header-titles { text-align: left !important; }
-            .header-titles h1 { font-size: 1.6rem !important; color: #000 !important; margin-bottom: 4px !important; }
-            .approval-box { display: table !important; margin-left: auto !important; width: 6cm !important; }
+            .header-titles h1 { font-size: 2.4rem !important; color: #000 !important; margin-bottom: 4px !important; font-weight: 800 !important; }
+            
+            .approval-box { display: table !important; margin-left: auto !important; width: 6.4cm !important; }
 
-            .matrix-guide-card { border: 1px solid #000 !important; box-shadow: none !important; margin-bottom: 15px !important; padding: 12px 15px !important; }
+            .matrix-guide-card { border: 1px solid #000 !important; box-shadow: none !important; margin-bottom: 12px !important; padding: 10px 12px !important; }
             .matrix-guide-table th, .matrix-guide-table td { border-color: #000 !important; }
 
             .card { box-shadow: none !important; border: none !important; padding: 0 !important; margin-bottom: 10px !important; }
-            .report-card { border: 1px solid #000 !important; box-shadow: none !important; page-break-inside: avoid !important; margin-bottom: 15px !important; }
-            .report-images { display: flex !important; width: 100% !important; flex-direction: row !important; page-break-inside: avoid !important; }
-            .report-img-box { width: 50% !important; flex: 1 !important; padding: 8px !important; }
-            .report-img-box img { display: block !important; max-width: 100% !important; max-height: 200px !important; width: auto !important; height: auto !important; }
-            .report-details { display: flex !important; flex-direction: row !important; }
-            .detail-pane { width: 50% !important; flex: 1 !important; padding: 12px !important; }
-            th, td { border-bottom: 1px solid #000 !important; color: #000 !important; }
-            .section-divider { border-bottom-color: #000 !important; margin: 20px 0 10px 0 !important; }
+            th, td { border-bottom: 1px solid #000 !important; color: #000 !important; vertical-align: top !important; padding: 7px 5px !important; }
+            .section-divider { border-bottom-color: #000 !important; margin: 15px 0 8px 0 !important; }
             .print-break { page-break-before: always; }
             div[style*="overflow-x"] { overflow: visible !important; height: auto !important; max-height: none !important; border: none !important; }
             table { page-break-inside: auto; width: 100% !important; }
@@ -335,57 +387,23 @@
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
-            .tag-opinion {
-                background-color: #0f766e !important;
-                color: #ffffff !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-            }
-            .status-badge {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-            }
-
-            .opinion-card {
-                border: 1px solid #000 !important;
-                box-shadow: none !important;
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
-                margin-bottom: 20px !important;
-                display: block !important;
-            }
-            .opinion-header { background: #f1f5f9 !important; border-bottom: 1px solid #000 !important; }
-            .opinion-body {
-                display: grid !important;
-                grid-template-columns: 240px 1fr !important;
-                gap: 12px !important;
-                padding: 12px !important;
-                page-break-inside: avoid !important;
-            }
-            .opinion-photos { display: flex !important; flex-direction: column !important; gap: 8px !important; }
-            .opinion-photo-item { border: 1px solid #ccc !important; padding: 4px !important; page-break-inside: avoid !important; }
-            .opinion-photo-item img { max-width: 100% !important; max-height: 140px !important; object-fit: contain !important; }
-            .opinion-text { background: #f8fafc !important; border: 1px solid #cbd5e1 !important; padding: 6px 10px !important; }
-        }
-
-        .pdf-mode .no-print { display: none !important; }
-        .pdf-mode body { background-color: white; padding: 10px; font-size: 11px !important; }
-        .pdf-mode .main-header {
-            display: flex !important; justify-content: space-between !important; align-items: flex-start !important;
-            box-shadow: none !important; border: none !important; border-bottom: 2px solid #000 !important;
-            border-radius: 0 !important; padding: 0 0 15px 0 !important; margin-bottom: 15px !important; background: transparent !important;
-        }
-        .pdf-mode .header-titles { text-align: left !important; }
-        .pdf-mode .header-titles h1 { font-size: 1.6rem !important; color: #000 !important; margin-bottom: 4px !important; }
-        .pdf-mode .approval-box { display: table !important; margin-left: auto !important; width: 6cm !important; }
-        .pdf-mode .opinion-card { page-break-inside: avoid !important; break-inside: avoid !important; border: 1px solid #ccc; margin-bottom: 15px; }
-        .pdf-mode .score-tag, .pdf-mode .tag-opinion, .pdf-mode .status-badge {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
         }
     </style>
 </head>
 <body id="documentBody" oncontextmenu="return false;" onselectstart="return false;" ondragstart="return false;">
+
+<!-- 💡 안전조치 전체 내용 확인 및 수정 모달 팝업 -->
+<div id="detailModal">
+    <div class="modal-content">
+        <h3>🛡️ 현재의 안전조치 상세 내용 (전체 수정)</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">전체 내용을 다 확인하고 자유롭게 수정할 수 있습니다.</p>
+        <textarea id="modalTextarea"></textarea>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 6px;">
+            <button type="button" class="btn-outline" onclick="closeDetailModal()" style="padding: 8px 16px;">취소</button>
+            <button type="button" class="btn" onclick="saveModalContent()" style="padding: 8px 16px;">수정 저장하기</button>
+        </div>
+    </div>
+</div>
 
 <div id="login-overlay">
     <div class="login-box">
@@ -397,7 +415,6 @@
 </div>
 
 <script>
-  // 🛡️ 파이어베이스 설정 정보 난독화 디코딩
   const _0x_sec_cfg = "QUl6YVN5Ql9haGdGUGhpM2pINUZfVUZubWVBS0NPRGRxV0JlVGo0O3Jpc2stc3lzdGVtLTI0ZDA1LmZpcmViYXNlYXBwLmNvbTtodHRwczovL3Jpc2stc3lzdGVtLTI0ZDA1LWRlZmF1bHQtcnRkYi5maXJlYmFzZWlvLmNvbTtyaXNrLXN5c3RlbS0yNGQwNTtyaXNrLXN5c3RlbS0yNGQwNS5maXJlYmFzZXN0b3JhZ2UuYXBwOzY2MTM3NTQyNTA1OzE6NjYxMzc1NDI1MDU6d2ViOjE4OGZkYzczMzNjNmE3ODg4MGI3Zjg=";
   const _dec = atob(_0x_sec_cfg).split(';');
 
@@ -486,8 +503,8 @@
             <div class="team-selector">
                 <label for="current-team-select">👤 접속 팀:</label>
                 <select id="current-team-select" onchange="changeTeam()">
-                    <option value="전기팀">전기팀</option>
-                    <option value="소방팀" selected>소방팀</option>
+                    <option value="전기팀" selected>전기팀</option>
+                    <option value="소방팀">소방팀</option>
                     <option value="설비팀">설비팀</option>
                     <option value="건축팀">건축팀</option>
                     <option value="점검팀">점검팀</option>
@@ -510,8 +527,9 @@
             <button class="btn-outline" onclick="window.print()" style="color: #475569; border-color: #475569;">
                 🖨️ 인쇄 (Print)
             </button>
-            <button class="btn-outline" onclick="downloadPDF()" style="color: #dc2626; border-color: #dc2626;">
-                📄 PDF 저장
+            <!-- 💡 [변경] 별도의 불안정한 html2pdf 라이브러리를 쓰지 않고, 인쇄 화면을 통해 PDF로 완벽 저장하도록 변경 -->
+            <button class="btn-outline" onclick="window.print()" style="color: #dc2626; border-color: #dc2626;">
+                📄 PDF 저장 (인쇄창 이용)
             </button>
         </div>
     </div>
@@ -520,16 +538,16 @@
     <div id="view_risk_assessment">
         <div class="main-header">
             <div class="header-titles">
-                <h1>통합 위험성평가 관리 시스템</h1>
-                <p style="color: var(--text-muted);">5×4 매트릭스 기반 (안전보건공단 지침 적용) | <span style="color:var(--success);">팀별 개별 및 실시간 통합 연동 지원</span></p>
+                <h1 style="font-size: 2.4rem; font-weight: 800; color: var(--primary);">통합 위험성평가 관리 시스템</h1>
+                <p style="color: var(--text-muted); font-size: 1rem;">5×4 매트릭스 기반 (안전보건공단 지침 적용) | <span style="color:var(--success);">팀별 개별 및 실시간 통합 연동 지원</span></p>
             </div>
 
             <table class="approval-box">
                 <tr>
-                    <th rowspan="2">결<br>재</th>
-                    <th>담당</th>
-                    <th>팀장</th>
-                    <th>소장</th>
+                    <th rowspan="2" class="col-title">결<br>재</th>
+                    <th class="col-sign">담당</th>
+                    <th class="col-sign">팀장</th>
+                    <th class="col-sign">소장</th>
                 </tr>
                 <tr>
                     <td class="sign-cell"></td>
@@ -540,7 +558,7 @@
         </div>
 
         <div class="section-divider">
-            <h2>📑 1단계: 정기 위험성평가 (목록형) <span class="team-badge" id="badge_step1">소방팀 전용</span></h2>
+            <h2>📑 1단계: 정기 위험성평가 (목록형) <span class="team-badge" id="badge_step1">전기팀 전용</span></h2>
         </div>
 
         <div class="dashboard-wrapper no-print">
@@ -554,7 +572,7 @@
             </div>
             <div style="flex: 1; min-width: 250px;">
                 <div style="background: var(--primary-light); border-left: 4px solid var(--primary); padding: 12px; border-radius: 6px; font-size: 0.9rem; color: var(--primary);">
-                    <strong>💡 현재 접속 팀: <span id="dash_team_title" style="text-decoration: underline;">소방팀</span></strong><br>
+                    <strong>💡 현재 접속 팀: <span id="dash_team_title" style="text-decoration: underline;">전기팀</span></strong><br>
                     선택한 팀의 위험성평가 항목 및 등록된 종사자의견이 통합 표시됩니다.
                 </div>
             </div>
@@ -606,8 +624,13 @@
         <div class="card">
             <form id="formStandard" class="no-print">
                 <div class="form-grid">
-                    <div class="form-group"><label>작업/공정명</label><input type="text" id="std_process" placeholder="예: 소방 시설 관리" required></div>
-                    <div class="form-group"><label>위험요인 (Hazard)</label><input type="text" id="std_hazard" placeholder="예: 감지기 교체 중 낙상" required></div>
+                    <div class="form-group"><label>공정명</label><input type="text" id="std_process" placeholder="예: 전기" required></div>
+                    <div class="form-group"><label>세부작업명</label><input type="text" id="std_task" placeholder="예: 등기구 교체작업" required></div>
+                    <div class="form-group"><label>위험요인 (Hazard)</label><input type="text" id="std_hazard" placeholder="예: 협착위험 또는 감전" required></div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group"><label>위험발생 상황 및 결과</label><input type="text" id="std_result" placeholder="예: 사다리 이용 중 떨어짐 위험" required></div>
+                    <div class="form-group"><label>현재의 안전조치 사항</label><input type="text" id="std_currentMeasure" placeholder="예: 안전모, 절연화 착용 및 2인 1조 작업" required></div>
                     <div class="form-group">
                         <label>가능성 (빈도)</label>
                         <select id="std_freq" onchange="calcStdScore()">
@@ -630,8 +653,8 @@
                     <div class="form-group"><label>위험도 (자동계산)</label><input type="text" id="std_scoreDisplay" readonly value="6점 (중위험)"></div>
                 </div>
                 <div class="form-group" style="margin-bottom: 16px;">
-                    <label>개선 대책</label>
-                    <input type="text" id="std_plan" placeholder="예: 아웃트리거 고정 및 안전모 착용" required>
+                    <label>위험성 감소대책</label>
+                    <input type="text" id="std_plan" placeholder="예: 현재의 안전조치 유지" required>
                 </div>
                 <button type="submit" id="btnSubmitStd" class="btn" style="width: 100%;">평가 항목 리스트에 추가</button>
             </form>
@@ -652,14 +675,17 @@
                 <table>
                     <thead>
                         <tr>
-                            <th style="width:9%;">공정명</th>
-                            <th style="width:28%;">위험요인 (Hazard)</th>
-                            <th style="text-align:center; width:6%;">가능성</th>
-                            <th style="text-align:center; width:6%;">강도</th>
-                            <th style="text-align:center; width:7%;">위험도</th>
-                            <th style="width:24%;">위험 감소 대책</th>
-                            <th style="text-align:center; width:10%;">진행상태</th>
-                            <th class="no-print" style="text-align:center; width:10%; min-width:100px;">관리</th>
+                            <th style="width:8%;">공정명</th>
+                            <th style="width:11%;">세부작업명</th>
+                            <th style="width:15%;">위험요인 (Hazard)</th>
+                            <th style="width:15%;">위험발생 상황 및 결과</th>
+                            <th style="text-align:center; width:4%;">가능성</th>
+                            <th style="text-align:center; width:4%;">강도</th>
+                            <th style="text-align:center; width:5%;">위험도</th>
+                            <th style="width:18%;">현재의 안전조치</th>
+                            <th style="width:12%;">위험성 감소대책</th>
+                            <th style="text-align:center; width:8%;">진행상태</th>
+                            <th class="no-print" style="text-align:center; width:10%; min-width:90px;">관리</th>
                         </tr>
                     </thead>
                     <tbody id="std_tableBody"></tbody>
@@ -668,14 +694,14 @@
         </div>
 
         <div class="section-divider print-break">
-            <h2>🔄 2단계: 개선 전·후 관리 (상세 보고서) <span class="team-badge" id="badge_step2">소방팀 전용</span></h2>
+            <h2>🔄 2단계: 개선 전·후 관리 (상세 보고서) <span class="team-badge" id="badge_step2">전기팀 전용</span></h2>
         </div>
 
         <div class="card no-print">
             <form id="formCompare">
                 <div class="form-grid">
-                    <div class="form-group"><label>공정명</label><input type="text" id="cmp_process" placeholder="예: 소방" required></div>
-                    <div class="form-group"><label>세부작업명</label><input type="text" id="cmp_task" placeholder="예: 배관 보수작업" required></div>
+                    <div class="form-group"><label>공정명</label><input type="text" id="cmp_process" placeholder="예: 전기" required></div>
+                    <div class="form-group"><label>세부작업명</label><input type="text" id="cmp_task" placeholder="예: 등기구 교체작업" required></div>
                     <div class="form-group"><label>평가일자</label><input type="date" id="cmp_evalDate" required></div>
                     <div class="form-group"><label>완료일자 (미조치시 비움)</label><input type="date" id="cmp_compDate"></div>
                 </div>
@@ -782,7 +808,7 @@
 
                 <div class="form-group" style="margin-bottom: 24px;">
                     <label>위험감소대책 (조치내용)</label>
-                    <input type="text" id="cmp_measure" placeholder="예: 고소 작업차 대여 및 안전장구류 전면 교체" required style="padding:12px;">
+                    <input type="text" id="cmp_measure" placeholder="예: 안전장구류 전면 교체 및 2인 1조 작업" required style="padding:12px;">
                 </div>
                 <button type="submit" id="btnSubmitCompare" class="btn" style="width: 100%; font-size:1.1rem; padding:16px;">개선 전·후 보고서 생성하기</button>
             </form>
@@ -817,11 +843,11 @@
                     </div>
                     <div class="form-group">
                         <label>작업/공정명 *</label>
-                        <input type="text" id="op_process" placeholder="예: 유수검지장치실 점검" required>
+                        <input type="text" id="op_process" placeholder="예: 전기실 점검" required>
                     </div>
                     <div class="form-group">
                         <label>발생 위치 및 장소 *</label>
-                        <input type="text" id="op_location" placeholder="예: A동 지하 1층 밸브실" required>
+                        <input type="text" id="op_location" placeholder="예: 지하 1층 수배전반실" required>
                     </div>
                 </div>
 
@@ -832,7 +858,7 @@
 
                 <div class="form-group" style="margin-bottom: 16px;">
                     <label>근로자가 바라는 개선 희망 대책 (선택)</label>
-                    <input type="text" id="op_suggestion" placeholder="예: 고소 작업용 안전 발판 설치 및 이동식 조명 비치 요청">
+                    <input type="text" id="op_suggestion" placeholder="예: 절연 매트 교체 및 경고 표지판 부착 요청">
                 </div>
 
                 <div class="photo-upload-container">
@@ -872,17 +898,18 @@
             </form>
         </div>
 
-        <div class="card-title" style="margin-top: 10px; color:#0f766e;">📋 <span id="op_list_team_title">소방팀</span> 종사자 의견 및 사진대지 목록</div>
+        <div class="card-title" style="margin-top: 10px; color:#0f766e;">📋 <span id="op_list_team_title">전기팀</span> 종사자 의견 및 사진대지 목록</div>
         <div id="opinionListContainer"></div>
     </div>
 </div>
 
 <script>
     let currentView = 'risk';
-    let currentTeamSession = '소방팀';
+    let currentTeamSession = '전기팀';
     let unsubscribeFirestore = null; 
     let isUpdatingFromRemote = false; 
     let isReadOnlyHistoryMode = false;
+    let currentEditingItemId = null;
 
     function toggleViewMode() {
         const riskView = document.getElementById('view_risk_assessment');
@@ -922,48 +949,18 @@
     }
 
     let stdData = [
-      { id: 1, team: '소방팀', process: '소방', hazard: '사다리/고소대를 이용하여 유도등 교체 및 보수작업 시 떨어짐 위험', f: 3, s: 3, plan: 'KIFT  협의 예정  2023년 의견 2025년 kift 종사자의견서 전달', status: 'inprogress' },
-      { id: 2, team: '소방팀', process: '소방', hazard: '작업장의 정리정돈 부재로 인한 충돌 및 넘어지는 위험', f: 2, s: 3, plan: '현재의 안전조치 유지', status: 'completed' },
-      { id: 3, team: '소방팀', process: '소방', hazard: '유도등 교체시 교류전원에 감전', f: 1, s: 4, plan: '현재의 안전조치 유지', status: 'completed' },
-      { id: 4, team: '소방팀', process: '소방', hazard: '어두운 장소 등 교체,보수작업 시  안전사고 위험', f: 2, s: 3, plan: '현재의 안전조치 유지', status: 'completed' },
-      { id: 5, team: '소방팀', process: '소방', hazard: '교체,보수작업 시 근로자 실수/ 작업도구 오사용 및 불안정한 작업자세로 인한 안전사고 위험', f: 2, s: 3, plan: '현재의 안전조치 유지', status: 'completed' },
-      { id: 6, team: '소방팀', process: '소방', hazard: '사다리/고소대를 이용하여 행거 및 가지배관 보수작업 시 추락사고 위험', f: 3, s: 4, plan: 'A,D동 완료/나머지 진행중(KIFT  현재 진행중) 2023년 의견 2025년 kift 종사자의견서 전달', status: 'inprogress' },
-      { id: 7, team: '소방팀', process: '소방', hazard: '작업장의 정리정돈 부재로 인한 충돌 및 넘어지는 위험', f: 2, s: 3, plan: '현재의 안전조치 유지', status: 'completed' },
-      { id: 8, team: '소방팀', process: '소방', hazard: '배관 전기용접작업 중 불티로 인한 화재 위험', f: 1, s: 4, plan: '현재의 안전조치 유지', status: 'completed' },
-      { id: 9, team: '소방팀', process: '소방', hazard: '어두운 장소 등 교체,보수작업 시  안전사고 위험', f: 2, s: 3, plan: '현재의 안전조치 유지', status: 'completed' },
-      { id: 10, team: '소방팀', process: '소방', hazard: '교체,보수작업 시 근로자 실수/ 작업도구 오사용 및 불안정한 작업자세로 인한 안전사고 위험', f: 2, s: 3, plan: '현재의 안전조치 유지', status: 'completed' },
-      { id: 11, team: '소방팀', process: '소방', hazard: '감지기교체시 교체봉이 천정 전선트레이 등으로 전도되어 감전사고 위험', f: 2, s: 3, plan: '현재의 안전조치 유지', status: 'completed' },
-      { id: 12, team: '소방팀', process: '소방', hazard: '어두운 장소 등 교체,보수작업 시  안전사고 위험', f: 2, s: 3, plan: '현재의 안전조치 유지', status: 'completed' },
-      { id: 13, team: '소방팀', process: '소방', hazard: '교체,보수작업 시 근로자 실수/ 작업도구 오사용 및 불안정한 작업자세로 인한 안전사고 위험', f: 1, s: 3, plan: '현재의 안전조치 유지', status: 'completed' },
-      { id: 14, team: '소방팀', process: '소방', hazard: '그라인더 사용시 안전조치 미흡으로  감전', f: 2, s: 2, plan: '현재의 안전조치 유지', status: 'completed' },
-      { id: 15, team: '소방팀', process: '소방', hazard: '배관 산소/전기용접작업 중 불티로 인한 화재 위험', f: 1, s: 4, plan: '현재의 안전조치 유지', status: 'completed' },
-      { id: 16, team: '소방팀', process: '소방', hazard: '어두운 장소 등 교체,보수작업 시  안전사고 위험', f: 2, s: 3, plan: '현재의 안전조치 유지', status: 'completed' },
-      { id: 17, team: '소방팀', process: '소방', hazard: '교체,보수작업 시 근로자 실수/ 작업도구 오사용 및 불안정한 작업자세로 인한 안전사고 위험', f: 2, s: 2, plan: 'KFIT 2023년 의견 2025년 kift 종사자의견서 전달', status: 'inprogress' },
-      { id: 18, team: '소방팀', process: '소방', hazard: '작업장의 정리정돈 부재로 인한 충돌 및 넘어지는 위험.사다리작업시 추락사고 위험', f: 2, s: 2, plan: '현재의 안전조치 유지', status: 'completed' },
-      { id: 19, team: '소방팀', process: '소방', hazard: '밸브 조작 어려음', f: 2, s: 2, plan: '현재의 안전조치 유지', status: 'completed' },
-      { id: 20, team: '소방팀', process: '소방', hazard: '누수상태 및 이상상태 확인, 옥내외 소방시설 및 유수검지장치실 점검 확인  시 개인보호구 미착용으로 인한 안전 사고 위험', f: 2, s: 4, plan: '시설물이상확인서발행(3월),KIFT 요청2023년 의견 2025년 kift 종사자의견서 전달', status: 'inprogress' },
-      { id: 21, team: '소방팀', process: '소방', hazard: '밸브실 조명 미비', f: 2, s: 2, plan: '협의예정 2024년 의견 2025년 kift 종사자의견서 전달', status: 'pending' },
-      { id: 22, team: '소방팀', process: '소방', hazard: '맨홀 작업시 발판 없어 위험', f: 1, s: 3, plan: '맨홀 작업 발판 설치완료', status: 'completed' },
-      { id: 23, team: '소방팀', process: '소방', hazard: '누수상태 및 이상상태 확인, 옥내외 소방시설 및 유수검지장치실 점검 확인  시  근로자 실수/ 작업도구 오사용 및 불안정한 작업자세로 인한 안전사고 위험', f: 2, s: 3, plan: '현재의 안전조치 유지', status: 'completed' },
-      { id: 24, team: '소방팀', process: '소방', hazard: '연동제어기,중계기 등 작업 시 위험', f: 3, s: 3, plan: '협의예정 2024년 의견 2025년 kift 종사자의견서 전달', status: 'pending' },
-      { id: 25, team: '소방팀', process: '소방', hazard: '열선 판넬 위치가 높아 작업 시 위험', f: 3, s: 3, plan: '신규 전용발판 구매 비치 완료함', status: 'completed' },
-      { id: 26, team: '소방팀', process: '소방', hazard: '전원 차단 및 복구시 1번,4번 단자 간격이 좁고 전선이  부드럽지 않아 선로 분리 및 재 연결시 사다리 위에서의 작업이 불편하고 불안정한 자세로 인해 낙하 위험이 있음', f: 2, s: 1, plan: '현재의 안전조치 유지', status: 'completed' },
-      { id: 27, team: '소방팀', process: '소방', hazard: '펌프 체결볼트 풀림', f: 1, s: 2, plan: '현재의 안전조치 유지', status: 'completed' },
-      { id: 28, team: '소방팀', process: '소방', hazard: '실내 조도 불량 /넘어짐 발생위험', f: 2, s: 1, plan: '현재의 안전조치 유지', status: 'completed' },
-      { id: 29, team: '소방팀', process: '소방', hazard: '점검 보수등 감전 전기적 원인', f: 1, s: 2, plan: '전직원 절연화 지급 완료', status: 'completed' },
-      { id: 30, team: '소방팀', process: '소방', hazard: '구급함 품목 미비', f: 1, s: 2, plan: '구급함 완료', status: 'completed' },
-      { id: 31, team: '소방팀', process: '소방', hazard: 'SP 퇴수배관 위치가 높고, 볼밸브로 되어 있어서 퇴수작업 시 물통을 들고 날라야 함', f: 1, s: 2, plan: '배관 개선 (앵글밸브로 교체)', status: 'completed' },
-      { id: 32, team: '소방팀', process: '소방', hazard: '소화기 위치 표시 없음', f: 2, s: 4, plan: '위치 표지판 보수 및 점검', status: 'completed' },
-      { id: 33, team: '소방팀', process: '소방', hazard: '전기 단자박스  커버 없이 노출상태임', f: 3, s: 2, plan: '단자함 절연 커버 부착 및 안전조치', status: 'completed' }
+      { id: 1, team: '전기팀', process: '전기', task: '등기구교체작업(형광램프,메탈램프,led램프,안정기)', hazard: '기계적 요인 / 협착위험 부분(감김,끼임)', result: '사다리/고소대를 이용하여 등기구 교체작업 시 떨어짐 위험', currentMeasure: '. 작업 안전교육 실시\n. 안전모,안전화,안전벨트착용\n. A형 사다리 정면작업/ 벌어짐 잠금장치 확인', f: 1, s: 3, plan: '현재의 안전조치 유지', status: 'completed' },
+      { id: 2, team: '전기팀', process: '전기', task: '등기구교체작업(형광램프,메탈램프,led램프,안정기)', hazard: '넘어짐(미끄러짐, 걸림, 헛디딤)', result: '작업장의 정리정돈 부재로 인한 충돌 및 넘어지는 위험', currentMeasure: '. 작업전 정리정돈 실시\n. 안전수칙 부착', f: 2, s: 1, plan: '현재의 안전조치 유지', status: 'completed' },
+      { id: 3, team: '전기팀', process: '전기', task: '등기구교체작업(형광램프,메탈램프,led램프,안정기)', hazard: '전기적 요인 / 감전(안전전압초과)', result: '안정기교체시 교류전원에 감전', currentMeasure: '. 해당 분전반 교류전원 차단\n. 분전반에 공사중 조작금지 표지 부착\n. 2인1조 작업 실시', f: 1, s: 3, plan: '현재의 안전조치 유지', status: 'completed' }
     ];
 
     let cmpData = [
         {
-            id: 1, team: '소방팀', process: '소방', task: '타워등 교체 작업',
-            cause: '높은 고도에서 불안정한 자세 및 안전장구 미비로 인한 추락 위험', result: '고소작업차 활용 및 안전대 부착 설비 완비로 추락 위험 완전 해소',
+            id: 1, team: '전기팀', process: '전기', task: '등기구 교체 작업',
+            cause: '사다리 작업 중 불안정한 자세 및 안전모 미비로 인한 추락 위험', result: '고소작업차 활용 및 안전대 부착 설비 완비로 추락 위험 완전 해소',
             measure: '고소 작업차 대여 및 2인 1조 작업 지시',
-            fb: 5, sb: 4, fa: 1, sa: 2,
-            evalDate: '2026-08-02', compDate: '2026-08-20', status: 'completed',
+            fb: 3, sb: 3, fa: 1, sa: 2,
+            evalDate: '2026-01-02', compDate: '2026-01-20', status: 'completed',
             imgB: '', imgA: ''
         }
     ];
@@ -999,25 +996,25 @@
     }
 
     function loadSavedData() {
-        const savedStd = localStorage.getItem('risk_stdData_v8');
-        const savedCmp = localStorage.getItem('risk_cmpData_v8');
-        const savedOp = localStorage.getItem('risk_opinionData_v8');
+        const savedStd = localStorage.getItem('risk_stdData_v34');
+        const savedCmp = localStorage.getItem('risk_cmpData_v34');
+        const savedOp = localStorage.getItem('risk_opinionData_v34');
         
         if (savedStd) stdData = JSON.parse(savedStd);
         if (savedCmp) cmpData = JSON.parse(savedCmp);
         if (savedOp) opinionList = JSON.parse(savedOp);
 
-        stdData.forEach(i => { if (!i.team) i.team = '소방팀'; });
-        cmpData.forEach(i => { if (!i.team) i.team = '소방팀'; });
-        opinionList.forEach(i => { if (!i.team) i.team = '소방팀'; });
+        stdData.forEach(i => { if (!i.team) i.team = '전기팀'; });
+        cmpData.forEach(i => { if (!i.team) i.team = '전기팀'; });
+        opinionList.forEach(i => { if (!i.team) i.team = '전기팀'; });
     }
 
     function saveToLocalStorage() {
         if (isReadOnlyHistoryMode) return;
         try {
-            localStorage.setItem('risk_stdData_v8', JSON.stringify(stdData));
-            localStorage.setItem('risk_cmpData_v8', JSON.stringify(cmpData));
-            localStorage.setItem('risk_opinionData_v8', JSON.stringify(opinionList));
+            localStorage.setItem('risk_stdData_v34', JSON.stringify(stdData));
+            localStorage.setItem('risk_cmpData_v34', JSON.stringify(cmpData));
+            localStorage.setItem('risk_opinionData_v34', JSON.stringify(opinionList));
         } catch (e) {
             console.warn("로컬 스토리지 용량 한계 주의:", e);
         }
@@ -1092,12 +1089,12 @@
 
     async function handleUnifiedSave() {
         if (isReadOnlyHistoryMode) {
-            alert('⚠️ 현재 과거 백업 이력 조회 모드입니다. 클라우드 서버 덮어쓰기 방지를 위해 저장이 차단되어 있습니다.');
+            alert('⚠️ 과거 백업 조회 모드에서는 클라우드 저장이 차단되었습니다.');
             return;
         }
         saveToLocalStorage();
         await saveToFirestore();
-        alert(`💾 [${currentTeamSession}] 모든 데이터가 클라우드에 성공적으로 보관되었습니다.`);
+        alert(`💾 [${currentTeamSession}] 모든 데이터가 전체 저장 및 클라우드에 연동되었습니다!`);
     }
 
     function handleUnifiedExport() {
@@ -1137,7 +1134,7 @@
                 let targetTeam = imported.teamName || currentTeamSession;
                 let exportDate = imported.exportDate || '과거 시점';
 
-                const userChoice = confirm(`📥 [${targetTeam}] (${exportDate} 백업본)\n\n확인(확인): 안전하게 [과거 백업본 조회 / 인쇄 모드]로 열기 (서버 데이터 덮어쓰기 방지)\n취소(취소): 불러오기 취소`);
+                const userChoice = confirm(`📥 [${targetTeam}] (${exportDate} 백업본)\n\n확인: 안전하게 [과거 백업본 조회 / 인쇄 모드]로 열기\n취소: 불러오기 취소`);
 
                 if (userChoice) {
                     if (unsubscribeFirestore) unsubscribeFirestore();
@@ -1159,7 +1156,7 @@
                     document.getElementById('btn_manual_save').style.cursor = 'not-allowed';
 
                     changeTeam();
-                    alert(`📂 [${targetTeam}] ${exportDate} 백업 데이터 조회가 활성화되었습니다.\n(클라우드 덮어쓰기 방지 상태로 인쇄/PDF 저장이 가능합니다)`);
+                    alert(`📂 [${targetTeam}] ${exportDate} 백업 데이터 조회가 활성화되었습니다.`);
                 }
             } catch (err) {
                 console.error(err);
@@ -1171,7 +1168,7 @@
     }
 
     function exitReadOnlyMode() {
-        if (confirm('🔄 과거 백업 조회를 종료하고, 실시간 클라우드(최신 서버) 모드로 복귀하시겠습니까?')) {
+        if (confirm('🔄 과거 백업 조회를 종료하고, 실시간 클라우드 모드로 복귀하시겠습니까?')) {
             isReadOnlyHistoryMode = false;
             document.getElementById('backup-readonly-banner').style.display = 'none';
             document.getElementById('btn_manual_save').style.opacity = '1';
@@ -1211,12 +1208,43 @@
         }
     }
 
+    function openDetailModal(id) {
+        currentEditingItemId = id;
+        const item = stdData.find(i => i.id === id);
+        if (!item) return;
+
+        document.getElementById('modalTextarea').value = item.currentMeasure || '';
+        document.getElementById('detailModal').style.display = 'flex';
+    }
+
+    function closeDetailModal() {
+        document.getElementById('detailModal').style.display = 'none';
+        currentEditingItemId = null;
+    }
+
+    async function saveModalContent() {
+        if (isReadOnlyHistoryMode) {
+            alert('⚠️ 과거 백업 조회 모드에서는 수정이 차단됩니다.');
+            return;
+        }
+        if (!currentEditingItemId) return;
+
+        const newText = document.getElementById('modalTextarea').value;
+        const idx = stdData.findIndex(i => i.id === currentEditingItemId);
+        if (idx > -1) {
+            stdData[idx].currentMeasure = newText;
+            renderStdTable();
+            saveToLocalStorage();
+        }
+        closeDetailModal();
+    }
+
     function renderStdTable() {
         const tbody = document.getElementById('std_tableBody'); tbody.innerHTML = '';
         const filteredStd = stdData.filter(i => i.team === currentTeamSession);
 
         if (filteredStd.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:#94a3b8;">등록된 위험성평가 항목이 없습니다.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:30px; color:#94a3b8;">등록된 위험성평가 항목이 없습니다.</td></tr>';
         } else {
             filteredStd.forEach(item => {
                 const lvl = getMatrixLevel(item.f, item.s);
@@ -1225,8 +1253,10 @@
                 if (editingRowId === item.id) {
                     tbody.innerHTML += `
                         <tr style="background-color: #f0f9ff;">
-                            <td><input type="text" id="edit_proc_${item.id}" value="${item.process}" class="inline-input"></td>
-                            <td><input type="text" id="edit_haz_${item.id}" value="${item.hazard}" class="inline-input"></td>
+                            <td><input type="text" id="edit_proc_${item.id}" value="${item.process || ''}" class="inline-input"></td>
+                            <td><input type="text" id="edit_task_${item.id}" value="${item.task || ''}" class="inline-input"></td>
+                            <td><input type="text" id="edit_haz_${item.id}" value="${item.hazard || ''}" class="inline-input"></td>
+                            <td><input type="text" id="edit_res_${item.id}" value="${item.result || ''}" class="inline-input"></td>
                             <td style="text-align:center;">
                                 <select id="edit_f_${item.id}" class="inline-select" onchange="updateInlineScore(${item.id})">
                                     ${[1,2,3,4,5].map(v => `<option value="${v}" ${item.f === v ? 'selected' : ''}>${v}</option>`).join('')}
@@ -1240,7 +1270,8 @@
                             <td style="text-align:center;">
                                 <span id="edit_score_${item.id}" class="score-tag" style="background-color:${lvl.bg} !important;">${lvl.score}</span>
                             </td>
-                            <td><input type="text" id="edit_plan_${item.id}" value="${item.plan}" class="inline-input"></td>
+                            <td><textarea id="edit_cur_${item.id}" class="inline-textarea">${item.currentMeasure || ''}</textarea></td>
+                            <td><input type="text" id="edit_plan_${item.id}" value="${item.plan || ''}" class="inline-input"></td>
                             <td style="text-align:center;">
                                 <select id="edit_status_${item.id}" class="inline-select">
                                     <option value="pending" ${item.status === 'pending' ? 'selected' : ''}>검토 접수</option>
@@ -1249,24 +1280,33 @@
                                 </select>
                             </td>
                             <td class="no-print" style="text-align:center;">
-                                <button onclick="saveInlineEdit(${item.id})" class="btn-outline" style="color:var(--success); border-color:var(--success); padding:4px 6px; margin-right:2px;">저장</button>
-                                <button onclick="cancelInlineEdit()" class="btn-outline" style="color:var(--text-muted); border-color:var(--border); padding:4px 6px;">취소</button>
+                                <button onclick="saveInlineEdit(${item.id})" class="btn-outline" style="color:var(--success); border-color:var(--success); padding:4px 8px; margin-bottom:4px; display:block; width:100%;">저장</button>
+                                <button onclick="cancelInlineEdit()" class="btn-outline" style="color:var(--text-muted); border-color:var(--border); padding:4px 8px; display:block; width:100%;">취소</button>
                             </td>
                         </tr>
                     `;
                 } else {
+                    const curMeasureText = item.currentMeasure || '-';
                     tbody.innerHTML += `
                         <tr>
-                            <td><strong>${item.process}</strong></td>
-                            <td>${isOp}${item.hazard}</td>
+                            <td><strong>${item.process || '-'}</strong></td>
+                            <td>${item.task || '-'}</td>
+                            <td>${isOp}${item.hazard || '-'}</td>
+                            <td>${item.result || '-'}</td>
                             <td style="text-align:center;">${item.f}</td>
                             <td style="text-align:center;">${item.s}</td>
                             <td style="text-align:center;"><span class="score-tag" style="background-color:${lvl.bg} !important;">${lvl.score}</span></td>
-                            <td>${item.plan}</td>
+                            <td>
+                                <div class="safety-cell-wrapper">
+                                    <div class="safety-measure-summary">${curMeasureText}</div>
+                                    <button type="button" class="btn-view-detail no-print" onclick="openDetailModal(${item.id})">보기</button>
+                                </div>
+                            </td>
+                            <td style="white-space: pre-wrap; font-size: 0.85rem;">${item.plan || '-'}</td>
                             <td style="text-align:center;">${getStatusBadge(item.status)}</td>
                             <td class="no-print" style="text-align:center;">
-                                <button onclick="startInlineEdit(${item.id})" class="btn-outline" style="color:var(--secondary); border:none; padding:4px 6px;">수정</button>
-                                <button onclick="delStd(${item.id})" class="btn-outline" style="color:var(--danger); border:none; padding:4px 6px;">삭제</button>
+                                <button onclick="startInlineEdit(${item.id})" class="btn-outline" style="color:var(--secondary); border-color:var(--secondary); padding:4px 8px; margin-right:2px;">수정</button>
+                                <button onclick="delStd(${item.id})" class="btn-outline" style="color:var(--danger); border-color:var(--danger); padding:4px 6px;">삭제</button>
                             </td>
                         </tr>
                     `;
@@ -1304,9 +1344,12 @@
         const idx = stdData.findIndex(i => i.id === id);
         if (idx > -1) {
             stdData[idx].process = document.getElementById(`edit_proc_${id}`).value;
+            stdData[idx].task = document.getElementById(`edit_task_${id}`).value;
             stdData[idx].hazard = document.getElementById(`edit_haz_${id}`).value;
+            stdData[idx].result = document.getElementById(`edit_res_${id}`).value;
             stdData[idx].f = parseInt(document.getElementById(`edit_f_${id}`).value);
             stdData[idx].s = parseInt(document.getElementById(`edit_s_${id}`).value);
+            stdData[idx].currentMeasure = document.getElementById(`edit_cur_${id}`).value;
             stdData[idx].plan = document.getElementById(`edit_plan_${id}`).value;
             stdData[idx].status = document.getElementById(`edit_status_${id}`).value;
 
@@ -1322,7 +1365,6 @@
         renderStdTable();
         renderOpinionList();
         saveToLocalStorage();
-        await saveToFirestore();
     }
 
     async function delStd(id) { 
@@ -1338,42 +1380,80 @@
         renderStdTable(); 
         renderOpinionList();
         saveToLocalStorage(); 
-        await saveToFirestore();
     }
 
     document.getElementById('formStandard').addEventListener('submit', async function(e) {
         e.preventDefault();
         if (isReadOnlyHistoryMode) {
-            alert('⚠️ 과거 백업 조회 모드에서는 항목 추가가 차단됩니다. 실시간 모드로 복귀 후 이용해 주세요.');
+            alert('⚠️ 과거 백업 조회 모드에서는 항목 추가가 차단됩니다.');
             return;
         }
 
         const process = document.getElementById('std_process').value;
+        const task = document.getElementById('std_task').value;
         const hazard = document.getElementById('std_hazard').value;
+        const result = document.getElementById('std_result').value;
+        const currentMeasure = document.getElementById('std_currentMeasure').value;
         const f = parseInt(document.getElementById('std_freq').value);
         const s = parseInt(document.getElementById('std_sev').value);
         const plan = document.getElementById('std_plan').value;
 
-        stdData.unshift({ id: Date.now(), team: currentTeamSession, process, hazard, f, s, plan, status: 'inprogress' });
+        stdData.unshift({ 
+            id: Date.now(), 
+            team: currentTeamSession, 
+            process, 
+            task, 
+            hazard, 
+            result, 
+            currentMeasure, 
+            f, 
+            s, 
+            plan, 
+            status: 'inprogress' 
+        });
 
         renderStdTable();
         saveToLocalStorage(); 
-        await saveToFirestore();
 
-        document.getElementById('std_hazard').value = ''; 
+        document.getElementById('std_task').value = '';
+        document.getElementById('std_hazard').value = '';
+        document.getElementById('std_result').value = '';
+        document.getElementById('std_currentMeasure').value = '';
         document.getElementById('std_plan').value = '';
     });
 
     function downloadExcel() {
         const filteredStd = stdData.filter(i => i.team === currentTeamSession);
-        const wsData = [['공정명', '위험요인 (Hazard)', '빈도(가능성)', '강도(중대성)', '위험도 점수', '위험도 등급', '위험 감소 대책', '진행상태']];
+        const wsData = [[
+            '공정명', '세부작업명', '유해위험요인 (Hazard)', '위험발생 상황 및 결과', 
+            '가능성(빈도)', '강도(중대성)', '위험도 점수', '위험도 등급', 
+            '현재의 안전조치 사항', '위험성 감소대책', '진행상태'
+        ]];
+        
         filteredStd.forEach(item => {
             const lvl = getMatrixLevel(item.f, item.s);
             const statusKor = item.status === 'completed' ? '조치 완료' : (item.status === 'inprogress' ? '조치 진행중' : '검토 접수');
-            wsData.push([item.process, item.hazard, item.f, item.s, lvl.score, lvl.text, item.plan, statusKor]);
+            wsData.push([
+                item.process || '',
+                item.task || '',
+                item.hazard || '',
+                item.result || '',
+                item.f,
+                item.s,
+                lvl.score,
+                lvl.text,
+                item.currentMeasure || '',
+                item.plan || '',
+                statusKor
+            ]);
         });
-        const wb = XLSX.utils.book_new(); const ws = XLSX.utils.aoa_to_sheet(wsData);
-        ws['!cols'] = [{wch: 15}, {wch: 50}, {wch: 12}, {wch: 12}, {wch: 12}, {wch: 12}, {wch: 50}, {wch: 15}];
+        const wb = XLSX.utils.book_new(); 
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        ws['!cols'] = [
+            {wch: 12}, {wch: 18}, {wch: 30}, {wch: 30}, 
+            {wch: 10}, {wch: 10}, {wch: 10}, {wch: 10}, 
+            {wch: 35}, {wch: 30}, {wch: 12}
+        ];
         XLSX.utils.book_append_sheet(wb, ws, `${currentTeamSession}_목록`);
         XLSX.writeFile(wb, `${currentTeamSession}_위험성평가_목록.xlsx`);
     }
@@ -1404,12 +1484,13 @@
                 }
 
                 if (headerRowIdx === -1) {
-                    alert("유효한 유해위험요인 헤더를 찾을 수 없습니다.");
+                    alert("유효한 헤더를 찾을 수 없습니다.");
                     return;
                 }
 
                 let count = 0;
-                let currentProc = '소방';
+                let currentProc = '전기';
+                let currentTask = '일반점검';
 
                 for (let i = headerRowIdx + 1; i < rows.length; i++) {
                     const row = rows[i];
@@ -1418,23 +1499,30 @@
                     if (row[0] && row[0].toString().trim() !== '') {
                         currentProc = row[0].toString().trim();
                     }
+                    if (row[1] && row[1].toString().trim() !== '') {
+                        currentTask = row[1].toString().trim();
+                    }
 
-                    let hazard = row[5] || row[7] || row[2] || '';
+                    let hazard = row[3] || row[2] || row[4] || '';
                     hazard = hazard.toString().trim();
 
-                    if (!hazard || hazard === '위험요인' || hazard === '원인') continue;
+                    if (!hazard || hazard === '위험요인' || hazard === '위험세부분류' || hazard === '원인') continue;
 
-                    const f = parseInt(row[9]) || 1;
-                    const s = parseInt(row[10]) || 1;
+                    let result = row[5] ? row[5].toString().trim() : '작업 중 위험요인 발생';
+                    let currentMeasure = row[6] ? row[6].toString().trim() : '현재의 안전조치 유지';
 
-                    let plan = row[12] || row[8] || '현재의 안전조치 유지';
-                    plan = plan.toString().trim();
+                    const f = parseInt(row[7]) || 2;
+                    const s = parseInt(row[8]) || 3;
+                    let plan = row[10] ? row[10].toString().trim() : '현재의 안전조치 유지';
 
                     stdData.push({
                         id: Date.now() + i,
                         team: currentTeamSession,
                         process: currentProc,
+                        task: currentTask,
                         hazard: hazard.replace(/\n/g, ' '),
+                        result: result.replace(/\n/g, ' '),
+                        currentMeasure: currentMeasure.replace(/\n/g, ' '),
                         f: f,
                         s: s,
                         plan: plan.replace(/\n/g, ' '),
@@ -1446,8 +1534,7 @@
                 if (count > 0) {
                     renderStdTable();
                     saveToLocalStorage();
-                    await saveToFirestore();
-                    alert(`✅ [${currentTeamSession}] 스마트 불러오기 성공!\n총 ${count}건을 추출하였습니다.`);
+                    alert(`✅ [${currentTeamSession}] 엑셀 스마트 불러오기 성공!\n총 ${count}건의 위험성평가 항목을 추출하였습니다.`);
                 } else {
                     alert("불러올 수 있는 유효한 데이터가 없습니다.");
                 }
@@ -1661,7 +1748,6 @@
             cmpData = cmpData.filter(item => item.id !== id);
             renderCmpCards();
             saveToLocalStorage(); 
-            await saveToFirestore();
         }
     }
 
@@ -1778,15 +1864,15 @@
 
         renderCmpCards(); 
         saveToLocalStorage(); 
-        await saveToFirestore();
 
         this.reset();
-        document.getElementById('cmp_evalDate').valueAsDate = new Date(); 
-        removeImage('Before'); removeImage('After');
-        calcCmpScore('Before'); calcCmpScore('After');
+        document.getElementById('cmp_evalDate').valueAsDate = new Date();
+        removeImage('Before');
+        removeImage('After');
+        calcCmpScore('Before');
+        calcCmpScore('After');
     });
 
-    // --- 📢 종사자의견 및 위험성평가 연동 로직 ---
     function previewOpinionImage(input, type) {
         if (isReadOnlyHistoryMode) {
             alert('⚠️ 과거 백업 조회 모드에서는 사진 등록이 차단됩니다.');
@@ -1892,7 +1978,10 @@
                 isOpinion: true,
                 team: currentTeamSession,
                 process: process,
+                task: '현장 종사자 제보',
                 hazard: hazardText,
+                result: '종사자 제보 유해·위험요인 발생',
+                currentMeasure: '현장 확인 및 검토',
                 f: 3,
                 s: 3,
                 plan: planText,
@@ -1901,7 +1990,6 @@
         }
 
         saveToLocalStorage();
-        await saveToFirestore();
         renderOpinionList();
         renderStdTable();
 
@@ -1909,7 +1997,7 @@
         clearOpinionPhoto('before');
         clearOpinionPhoto('after');
 
-        alert(`✅ [${currentTeamSession}] 종사자 의견이 등록되었으며, 위험성평가 리스트에 자동으로 추가되었습니다.`);
+        alert(`✅ [${currentTeamSession}] 종사자 의견이 등록되었습니다.`);
         document.getElementById('opinionListContainer').scrollIntoView({ behavior: 'smooth' });
     });
 
@@ -2023,42 +2111,24 @@
             alert('⚠️ 과거 백업 조회 모드에서는 삭제가 차단됩니다.');
             return;
         }
-        if (confirm('해당 의견 및 사진대지를 삭제하시겠습니까? (위험성평가 리스트에서도 함께 제거됩니다)')) {
+        if (confirm('해당 의견 및 사진대지를 삭제하시겠습니까?')) {
             opinionList = opinionList.filter(x => x.id !== id);
             stdData = stdData.filter(s => s.opinionId !== id);
             saveToLocalStorage();
-            await saveToFirestore();
             renderOpinionList();
             renderStdTable();
         }
     }
 
+    // 💡 PDF 저장을 누르면 곧바로 브라우저 인쇄/PDF 저장 창이 열리도록 연결
     function downloadPDF() {
-        const element = document.getElementById('documentBody');
-        document.documentElement.classList.add('pdf-mode');
-
-        const fileName = (currentView === 'risk')
-            ? `${currentTeamSession}_위험성평가_보고서.pdf`
-            : `${currentTeamSession}_종사자의견_및_사진대지_보고서.pdf`;
-
-        const opt = {
-            margin:       10,
-            filename:     fileName,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
-        html2pdf().set(opt).from(element).save().then(() => {
-            document.documentElement.classList.remove('pdf-mode');
-        });
+        window.print();
     }
 
     window.onload = async () => {
         initChart();
         loadSavedData();
         
-        // 💡 통합 포털에서 전달된 URL 파라미터(team, dept, forceTeam 등)를 읽어와 접속 팀 드롭다운(current-team-select)에 강제 고정
         const urlParams = new URLSearchParams(window.location.search);
         const teamParam = urlParams.get('team') || urlParams.get('dept') || urlParams.get('forceTeam');
         
@@ -2070,8 +2140,6 @@
                     break;
                 }
             }
-            // 💡 최고관리자가 아닌 일반 팀 계정인 경우 접속 팀 변경을 못 하도록 잠금 처리 (필요 시 주석 해제)
-            // teamSelect.disabled = true;
         }
 
         await changeTeam();
