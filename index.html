@@ -527,7 +527,6 @@
             <button class="btn-outline" onclick="window.print()" style="color: #475569; border-color: #475569;">
                 🖨️ 인쇄 (Print)
             </button>
-            <!-- 💡 [변경] 별도의 불안정한 html2pdf 라이브러리를 쓰지 않고, 인쇄 화면을 통해 PDF로 완벽 저장하도록 변경 -->
             <button class="btn-outline" onclick="window.print()" style="color: #dc2626; border-color: #dc2626;">
                 📄 PDF 저장 (인쇄창 이용)
             </button>
@@ -685,7 +684,7 @@
                             <th style="width:18%;">현재의 안전조치</th>
                             <th style="width:12%;">위험성 감소대책</th>
                             <th style="text-align:center; width:8%;">진행상태</th>
-                            <th class="no-print" style="text-align:center; width:10%; min-width:90px;">관리</th>
+                            <th class="no-print" style="text-align:center; width:12%; min-width:110px;">관리</th>
                         </tr>
                     </thead>
                     <tbody id="std_tableBody"></tbody>
@@ -695,6 +694,9 @@
 
         <div class="section-divider print-break">
             <h2>🔄 2단계: 개선 전·후 관리 (상세 보고서) <span class="team-badge" id="badge_step2">전기팀 전용</span></h2>
+            <button type="button" class="btn-outline no-print" onclick="clearCompareForm()" style="color: var(--danger); border-color: var(--danger); background: white;">
+                🗑️ 입력 내용 초기화 (삭제)
+            </button>
         </div>
 
         <div class="card no-print">
@@ -1239,6 +1241,47 @@
         closeDetailModal();
     }
 
+    function clearCompareForm() {
+        if (confirm('작성 중이던 2단계 상세 보고서 입력 내용을 모두 초기화(삭제)하시겠습니까?')) {
+            document.getElementById('formCompare').reset();
+            document.getElementById('cmp_evalDate').valueAsDate = new Date();
+            removeImage('Before');
+            removeImage('After');
+            calcCmpScore('Before');
+            calcCmpScore('After');
+            currentCmpEditId = null;
+            document.getElementById('btnSubmitCompare').innerText = '개선 전·후 보고서 생성하기';
+        }
+    }
+
+    function fillCmpFormFromStd(id) {
+        const item = stdData.find(i => i.id === id);
+        if (!item) return;
+
+        document.getElementById('cmp_process').value = item.process || '';
+        document.getElementById('cmp_task').value = item.task || '';
+        document.getElementById('cmp_cause').value = `[위험요인] ${item.hazard || ''}\n[발생상황] ${item.result || ''}`;
+        document.getElementById('cmp_measure').value = item.plan || item.currentMeasure || '';
+
+        document.getElementById('cmp_fBefore').value = item.f || 3;
+        document.getElementById('cmp_sBefore').value = item.s || 2;
+        calcCmpScore('Before'); 
+
+        // 💡 종사자 의견에 첨부된 사진이 있는 경우 2단계 캔버스에도 자동 로드 연동
+        if (item.opinionId) {
+            const op = opinionList.find(o => o.id === item.opinionId);
+            if (op) {
+                if (op.imgBefore) restoreCanvasFromBase64(op.imgBefore, 'Before');
+                if (op.imgAfter) restoreCanvasFromBase64(op.imgAfter, 'After');
+            }
+        }
+
+        document.getElementById('cmp_evalDate').valueAsDate = new Date();
+        document.getElementById('formCompare').scrollIntoView({ behavior: 'smooth' });
+
+        alert(`📋 [${item.process} - ${item.task}] 항목의 내용이 2단계 보고서 폼에 자동으로 채워졌습니다.`);
+    }
+
     function renderStdTable() {
         const tbody = document.getElementById('std_tableBody'); tbody.innerHTML = '';
         const filteredStd = stdData.filter(i => i.team === currentTeamSession);
@@ -1304,9 +1347,10 @@
                             </td>
                             <td style="white-space: pre-wrap; font-size: 0.85rem;">${item.plan || '-'}</td>
                             <td style="text-align:center;">${getStatusBadge(item.status)}</td>
-                            <td class="no-print" style="text-align:center;">
-                                <button onclick="startInlineEdit(${item.id})" class="btn-outline" style="color:var(--secondary); border-color:var(--secondary); padding:4px 8px; margin-right:2px;">수정</button>
-                                <button onclick="delStd(${item.id})" class="btn-outline" style="color:var(--danger); border-color:var(--danger); padding:4px 6px;">삭제</button>
+                            <td class="no-print" style="text-align:center; white-space:nowrap;">
+                                <button onclick="fillCmpFormFromStd(${item.id})" class="btn-outline" style="color:#0f766e; border-color:#0f766e; padding:4px 6px; margin-bottom:2px; display:block; width:100%;">보고서작성</button>
+                                <button onclick="startInlineEdit(${item.id})" class="btn-outline" style="color:var(--secondary); border-color:var(--secondary); padding:4px 6px; margin-right:2px; display:inline-block; width:48%;">수정</button>
+                                <button onclick="delStd(${item.id})" class="btn-outline" style="color:var(--danger); border-color:var(--danger); padding:4px 6px; display:inline-block; width:48%;">삭제</button>
                             </td>
                         </tr>
                     `;
@@ -1823,7 +1867,7 @@
     document.getElementById('formCompare').addEventListener('submit', async function(e) {
         e.preventDefault();
         if (isReadOnlyHistoryMode) {
-            alert('⚠️ 과거 백업 조회 모드에서는 보고서 생성이 차단됩니다.');
+            alert('⚠️ 과거 백업 조회 모드에서는 보고서 생성이 차단되었습니다.');
             return;
         }
 
@@ -1989,15 +2033,41 @@
             });
         }
 
+        // 💡 종사자 의견 등록 시 2단계 개선 전·후 보고서 카드(cmpData)에도 사진과 함께 자동 생성/반영되도록 연동
+        const cmpIdx = cmpData.findIndex(c => c.opinionId === opId);
+        const cmpCardData = {
+            id: cmpIdx > -1 ? cmpData[cmpIdx].id : Date.now() + 200,
+            opinionId: opId,
+            team: currentTeamSession,
+            process: process,
+            task: `종사자 제보 (${location})`,
+            cause: `[종사자 제보] ${opinion} (작성자: ${worker})`,
+            result: suggestion ? `[개선희망대책] ${suggestion}` : '현장 의견 반영 조치',
+            measure: feedback || '현장 안전 조치 완료',
+            fb: 3, sb: 3, fa: 1, sa: 2,
+            evalDate: new Date().toISOString().split('T')[0],
+            compDate: status === 'completed' ? new Date().toISOString().split('T')[0] : '',
+            status: status,
+            imgB: tempOpImgBefore,
+            imgA: tempOpImgAfter
+        };
+
+        if (cmpIdx > -1) {
+            cmpData[cmpIdx] = cmpCardData;
+        } else {
+            cmpData.unshift(cmpCardData);
+        }
+
         saveToLocalStorage();
         renderOpinionList();
         renderStdTable();
+        renderCmpCards();
 
         this.reset();
         clearOpinionPhoto('before');
         clearOpinionPhoto('after');
 
-        alert(`✅ [${currentTeamSession}] 종사자 의견이 등록되었습니다.`);
+        alert(`✅ [${currentTeamSession}] 종사자 의견이 등록되었으며, 위험성평가 리스트 및 2단계 상세 보고서(사진대지)에 사진과 함께 연동되었습니다.`);
         document.getElementById('opinionListContainer').scrollIntoView({ behavior: 'smooth' });
     });
 
@@ -2114,13 +2184,14 @@
         if (confirm('해당 의견 및 사진대지를 삭제하시겠습니까?')) {
             opinionList = opinionList.filter(x => x.id !== id);
             stdData = stdData.filter(s => s.opinionId !== id);
+            cmpData = cmpData.filter(c => c.opinionId !== id);
             saveToLocalStorage();
             renderOpinionList();
             renderStdTable();
+            renderCmpCards();
         }
     }
 
-    // 💡 PDF 저장을 누르면 곧바로 브라우저 인쇄/PDF 저장 창이 열리도록 연결
     function downloadPDF() {
         window.print();
     }
