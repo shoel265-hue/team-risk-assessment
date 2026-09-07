@@ -503,7 +503,8 @@
             <div class="team-selector">
                 <label for="current-team-select">👤 접속 팀:</label>
                 <select id="current-team-select" onchange="changeTeam()">
-                    <option value="전기팀" selected>전기팀</option>
+                    <option value="전체 (총괄 관리자)" selected>전체 (총괄 관리자)</option>
+                    <option value="전기팀">전기팀</option>
                     <option value="소방팀">소방팀</option>
                     <option value="설비팀">설비팀</option>
                     <option value="건축팀">건축팀</option>
@@ -557,7 +558,7 @@
         </div>
 
         <div class="section-divider">
-            <h2>📑 1단계: 정기 위험성평가 (목록형) <span class="team-badge" id="badge_step1">전기팀 전용</span></h2>
+            <h2>📑 1단계: 정기 위험성평가 (목록형) <span class="team-badge" id="badge_step1">전체 (총괄 관리자) 전용</span></h2>
         </div>
 
         <div class="dashboard-wrapper no-print">
@@ -571,7 +572,7 @@
             </div>
             <div style="flex: 1; min-width: 250px;">
                 <div style="background: var(--primary-light); border-left: 4px solid var(--primary); padding: 12px; border-radius: 6px; font-size: 0.9rem; color: var(--primary);">
-                    <strong>💡 현재 접속 팀: <span id="dash_team_title" style="text-decoration: underline;">전기팀</span></strong><br>
+                    <strong>💡 현재 접속 팀: <span id="dash_team_title" style="text-decoration: underline;">전체 (총괄 관리자)</span></strong><br>
                     선택한 팀의 위험성평가 항목 및 등록된 종사자의견이 통합 표시됩니다.
                 </div>
             </div>
@@ -693,7 +694,7 @@
         </div>
 
         <div class="section-divider print-break">
-            <h2>🔄 2단계: 개선 전·후 관리 (상세 보고서) <span class="team-badge" id="badge_step2">전기팀 전용</span></h2>
+            <h2>🔄 2단계: 개선 전·후 관리 (상세 보고서) <span class="team-badge" id="badge_step2">전체 (총괄 관리자) 전용</span></h2>
             <button type="button" class="btn-outline no-print" onclick="clearCompareForm()" style="color: var(--danger); border-color: var(--danger); background: white;">
                 🗑️ 입력 내용 초기화 (삭제)
             </button>
@@ -900,14 +901,14 @@
             </form>
         </div>
 
-        <div class="card-title" style="margin-top: 10px; color:#0f766e;">📋 <span id="op_list_team_title">전기팀</span> 종사자 의견 및 사진대지 목록</div>
+        <div class="card-title" style="margin-top: 10px; color:#0f766e;">📋 <span id="op_list_team_title">전체 (총괄 관리자)</span> 종사자 의견 및 사진대지 목록</div>
         <div id="opinionListContainer"></div>
     </div>
 </div>
 
 <script>
     let currentView = 'risk';
-    let currentTeamSession = '전기팀';
+    let currentTeamSession = '전체 (총괄 관리자)';
     let unsubscribeFirestore = null; 
     let isUpdatingFromRemote = false; 
     let isReadOnlyHistoryMode = false;
@@ -950,24 +951,10 @@
         return '<span style="color:#94a3b8; font-size:0.85rem;">-</span>';
     }
 
-    let stdData = [
-      { id: 1, team: '전기팀', process: '전기', task: '등기구교체작업(형광램프,메탈램프,led램프,안정기)', hazard: '기계적 요인 / 협착위험 부분(감김,끼임)', result: '사다리/고소대를 이용하여 등기구 교체작업 시 떨어짐 위험', currentMeasure: '. 작업 안전교육 실시\n. 안전모,안전화,안전벨트착용\n. A형 사다리 정면작업/ 벌어짐 잠금장치 확인', f: 1, s: 3, plan: '현재의 안전조치 유지', status: 'completed' },
-      { id: 2, team: '전기팀', process: '전기', task: '등기구교체작업(형광램프,메탈램프,led램프,안정기)', hazard: '넘어짐(미끄러짐, 걸림, 헛디딤)', result: '작업장의 정리정돈 부재로 인한 충돌 및 넘어지는 위험', currentMeasure: '. 작업전 정리정돈 실시\n. 안전수칙 부착', f: 2, s: 1, plan: '현재의 안전조치 유지', status: 'completed' },
-      { id: 3, team: '전기팀', process: '전기', task: '등기구교체작업(형광램프,메탈램프,led램프,안정기)', hazard: '전기적 요인 / 감전(안전전압초과)', result: '안정기교체시 교류전원에 감전', currentMeasure: '. 해당 분전반 교류전원 차단\n. 분전반에 공사중 조작금지 표지 부착\n. 2인1조 작업 실시', f: 1, s: 3, plan: '현재의 안전조치 유지', status: 'completed' }
-    ];
-
-    let cmpData = [
-        {
-            id: 1, team: '전기팀', process: '전기', task: '등기구 교체 작업',
-            cause: '사다리 작업 중 불안정한 자세 및 안전모 미비로 인한 추락 위험', result: '고소작업차 활용 및 안전대 부착 설비 완비로 추락 위험 완전 해소',
-            measure: '고소 작업차 대여 및 2인 1조 작업 지시',
-            fb: 3, sb: 3, fa: 1, sa: 2,
-            evalDate: '2026-01-02', compDate: '2026-01-20', status: 'completed',
-            imgB: '', imgA: ''
-        }
-    ];
-
+    let stdData = [];
+    let cmpData = [];
     let opinionList = [];
+
     let currentOpEditId = null;
     let tempOpImgBefore = '';
     let tempOpImgAfter = '';
@@ -1146,9 +1133,9 @@
                     importedCmp.forEach(i => i.team = targetTeam);
                     importedOp.forEach(i => i.team = targetTeam);
 
-                    stdData = importedStd;
-                    cmpData = importedCmp;
-                    opinionList = importedOp;
+                    stdData = stdData.filter(i => i.team !== targetTeam).concat(importedStd);
+                    cmpData = cmpData.filter(i => i.team !== targetTeam).concat(importedCmp);
+                    opinionList = opinionList.filter(i => i.team !== targetTeam).concat(importedOp);
 
                     currentTeamSession = targetTeam;
                     document.getElementById('current-team-select').value = targetTeam;
@@ -1267,7 +1254,6 @@
         document.getElementById('cmp_sBefore').value = item.s || 2;
         calcCmpScore('Before'); 
 
-        // 💡 종사자 의견에 첨부된 사진이 있는 경우 2단계 캔버스에도 자동 로드 연동
         if (item.opinionId) {
             const op = opinionList.find(o => o.id === item.opinionId);
             if (op) {
@@ -2033,7 +2019,6 @@
             });
         }
 
-        // 💡 종사자 의견 등록 시 2단계 개선 전·후 보고서 카드(cmpData)에도 사진과 함께 자동 생성/반영되도록 연동
         const cmpIdx = cmpData.findIndex(c => c.opinionId === opId);
         const cmpCardData = {
             id: cmpIdx > -1 ? cmpData[cmpIdx].id : Date.now() + 200,
