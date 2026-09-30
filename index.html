@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>통합 위험성평가 관리 시스템 (보안 완벽 차단 모드)</title>
+    <title>통합위험성평가_및_종사자의견_백업</title>
     
     <!-- 🛡️ 최상단 강제 보안 스크립트 -->
     <script>
@@ -117,7 +117,7 @@
         .main-header p { font-size: 1rem; color: var(--text-muted); }
         .header-titles { text-align: center; width: 100%; }
 
-        /* 💡 결재란: '결' 글자 칸은 좁게(0.7cm), 담당·팀장·소장 칸은 넓게(각 1.9cm) */
+        /* 결재란 */
         .approval-box {
             display: none; border: 2px solid #0f172a; background: white; border-collapse: collapse;
             font-size: 12px; text-align: center; width: 6.4cm !important; table-layout: fixed;
@@ -341,6 +341,7 @@
             background-color: #0f766e; color: white !important; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; margin-right: 4px; font-weight: bold;
         }
 
+        /* 🖨️ 인쇄 및 PDF 저장 전용 기존 스타일 */
         @media print {
             * {
                 -webkit-print-color-adjust: exact !important;
@@ -367,7 +368,7 @@
                 border-radius: 0 !important; padding: 0 0 12px 0 !important; margin-bottom: 12px !important; background: transparent !important;
             }
             .header-titles { text-align: left !important; }
-            .header-titles h1 { font-size: 2.4rem !important; color: #000 !important; margin-bottom: 4px !important; font-weight: 800 !important; }
+            .header-titles h1 { font-size: 2.2rem !important; color: #000 !important; margin-bottom: 4px !important; font-weight: 800 !important; }
             
             .approval-box { display: table !important; margin-left: auto !important; width: 6.4cm !important; }
 
@@ -392,7 +393,7 @@
 </head>
 <body id="documentBody" oncontextmenu="return false;" onselectstart="return false;" ondragstart="return false;">
 
-<!-- 💡 안전조치 전체 내용 확인 및 수정 모달 팝업 -->
+<!-- 💡 안전조치 상세 보기 모달 -->
 <div id="detailModal">
     <div class="modal-content">
         <h3>🛡️ 현재의 안전조치 상세 내용 (전체 수정)</h3>
@@ -526,7 +527,7 @@
                 📥 백업 복원 / 이력 조회
             </button>
             <button class="btn-outline" onclick="window.print()" style="color: #475569; border-color: #475569;">
-                🖨️ 인쇄 (Print)
+                🖨 인쇄 (Print)
             </button>
             <button class="btn-outline" onclick="window.print()" style="color: #dc2626; border-color: #dc2626;">
                 📄 PDF 저장 (인쇄창 이용)
@@ -534,7 +535,7 @@
         </div>
     </div>
 
-    <!-- 🟢 1. 기존 위험성평가 뷰 영역 -->
+    <!-- 🟢 1. 위험성평가 뷰 영역 -->
     <div id="view_risk_assessment">
         <div class="main-header">
             <div class="header-titles">
@@ -945,9 +946,9 @@
     }
 
     function getStatusBadge(status) {
-        if (status === 'completed') return '<span class="status-badge status-completed" style="background:#dcfce7 !important; color:#047857 !important; border:1px solid #10b981 !important;">조치 완료</span>';
-        if (status === 'inprogress') return '<span class="status-badge status-inprogress" style="background:#e0f2fe !important; color:#0369a1 !important; border:1px solid #38bdf8 !important;">조치 진행중</span>';
-        if (status === 'pending') return '<span class="status-badge status-pending" style="background:#fef3c7 !important; color:#b45309 !important; border:1px solid #f59e0b !important;">검토 접수</span>';
+        if (status === 'completed') return '<span class="status-badge status-completed">조치 완료</span>';
+        if (status === 'inprogress') return '<span class="status-badge status-inprogress">조치 진행중</span>';
+        if (status === 'pending') return '<span class="status-badge status-pending">검토 접수</span>';
         return '<span style="color:#94a3b8; font-size:0.85rem;">-</span>';
     }
 
@@ -1062,6 +1063,10 @@
         document.getElementById('dash_team_title').innerText = currentTeamSession;
         document.getElementById('op_list_team_title').innerText = currentTeamSession;
         
+        // 💡 PDF 저장시 백업 파일명과 완벽히 동일하도록 웹페이지 제목 설정
+        const today = new Date().toISOString().split('T')[0];
+        document.title = `${currentTeamSession}_통합위험성평가_및_종사자의견_백업_${today}`;
+
         editingRowId = null;
         currentCmpEditId = null;
         currentOpEditId = null;
@@ -1297,7 +1302,7 @@
                                 </select>
                             </td>
                             <td style="text-align:center;">
-                                <span id="edit_score_${item.id}" class="score-tag" style="background-color:${lvl.bg} !important;">${lvl.score}</span>
+                                <span id="edit_score_${item.id}" class="score-tag" style="background-color:${lvl.bg}">${lvl.score}</span>
                             </td>
                             <td><textarea id="edit_cur_${item.id}" class="inline-textarea">${item.currentMeasure || ''}</textarea></td>
                             <td><input type="text" id="edit_plan_${item.id}" value="${item.plan || ''}" class="inline-input"></td>
@@ -1324,7 +1329,7 @@
                             <td>${item.result || '-'}</td>
                             <td style="text-align:center;">${item.f}</td>
                             <td style="text-align:center;">${item.s}</td>
-                            <td style="text-align:center;"><span class="score-tag" style="background-color:${lvl.bg} !important;">${lvl.score}</span></td>
+                            <td style="text-align:center;"><span class="score-tag" style="background-color:${lvl.bg}">${lvl.score}</span></td>
                             <td>
                                 <div class="safety-cell-wrapper">
                                     <div class="safety-measure-summary">${curMeasureText}</div>
@@ -1645,7 +1650,7 @@
 
     function loadImageToCanvas(input, type) {
         if (isReadOnlyHistoryMode) {
-            alert('⚠️ 과거 백업 조회 모드에서는 사진 등록이 차단됩니다.');
+            alert('⚠️️ 과거 백업 조회 모드에서는 사진 등록이 차단됩니다.');
             return;
         }
         if (!input.files || !input.files[0]) return;
@@ -1961,7 +1966,7 @@
     document.getElementById('opinionForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         if (isReadOnlyHistoryMode) {
-            alert('⚠️ 과거 백업 조회 모드에서는 의견 등록이 차단됩니다.');
+            alert('⚠ 과거 백업 조회 모드에서는 의견 등록이 차단됩니다.');
             return;
         }
 
@@ -2089,11 +2094,11 @@
                     <div class="opinion-body">
                         <div class="opinion-photos">
                             <div class="opinion-photo-item">
-                                <span class="photo-tag" style="background:#fee2e2 !important; color:#ef4444 !important; border:1px solid #ef4444 !important;">개선 전 (위험 상태)</span>
+                                <span class="photo-tag" style="background:#fee2e2; color:#ef4444;">개선 전 (위험 상태)</span>
                                 ${item.imgBefore ? `<img src="${item.imgBefore}">` : '<div style="height:80px; display:flex; align-items:center; justify-content:center; color:#cbd5e1; font-size:0.8rem;">사진 없음</div>'}
                             </div>
                             <div class="opinion-photo-item">
-                                <span class="photo-tag" style="background:#dcfce7 !important; color:#047857 !important; border:1px solid #10b981 !important;">개선 후 (조치 상태)</span>
+                                <span class="photo-tag" style="background:#dcfce7; color:#047857;">개선 후 (조치 상태)</span>
                                 ${item.imgAfter ? `<img src="${item.imgAfter}">` : '<div style="height:80px; display:flex; align-items:center; justify-content:center; color:#cbd5e1; font-size:0.8rem;">사진 없음</div>'}
                             </div>
                         </div>
@@ -2107,7 +2112,7 @@
                                 <div class="opinion-text">${item.suggestion || '별도 제안사항 없음'}</div>
                             </div>
                             <div class="opinion-row">
-                                <div class="opinion-label">🛡️ 관리자 검토 및 조치 결과 피드백</div>
+                                <div class="opinion-label">🛡️️ 관리자 검토 및 조치 결과 피드백</div>
                                 <div class="opinion-text" style="background: #f0fdfa; border-color:#99f6e4;">${item.feedback || '관리자 검토 대기 중'}</div>
                             </div>
                         </div>
