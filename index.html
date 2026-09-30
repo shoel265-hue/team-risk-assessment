@@ -341,7 +341,7 @@
             background-color: #0f766e; color: white !important; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; margin-right: 4px; font-weight: bold;
         }
 
-        /* 🖨️ 인쇄 및 PDF 저장 전용 기존 스타일 */
+        /* 🖨️️ 인쇄 및 PDF 저장 전용 스타일 */
         @media print {
             * {
                 -webkit-print-color-adjust: exact !important;
@@ -529,8 +529,8 @@
             <button class="btn-outline" onclick="window.print()" style="color: #475569; border-color: #475569;">
                 🖨 인쇄 (Print)
             </button>
-            <button class="btn-outline" onclick="window.print()" style="color: #dc2626; border-color: #dc2626;">
-                📄 PDF 저장 (인쇄창 이용)
+            <button class="btn-outline" onclick="savePDFPage()" style="color: #dc2626; border-color: #dc2626;" title="인쇄창이 열리면 대상을 'PDF로 저장'으로 선택하세요">
+                📄 PDF 저장
             </button>
         </div>
     </div>
@@ -1063,7 +1063,7 @@
         document.getElementById('dash_team_title').innerText = currentTeamSession;
         document.getElementById('op_list_team_title').innerText = currentTeamSession;
         
-        // 💡 PDF 저장시 백업 파일명과 완벽히 동일하도록 웹페이지 제목 설정
+        // 💡 PDF 저장 시 백업 파일명과 완벽히 동일하도록 웹페이지 제목 설정
         const today = new Date().toISOString().split('T')[0];
         document.title = `${currentTeamSession}_통합위험성평가_및_종사자의견_백업_${today}`;
 
@@ -1079,6 +1079,43 @@
         renderStdTable();
         renderCmpCards();
         renderOpinionList();
+    }
+
+    // 💡 PDF 저장: 부모 창(통합포털 메인) 및 현재 프레임 제목을 동적 변경 후 출력
+    function savePDFPage() {
+        const today = new Date().toISOString().split('T')[0];
+        const filename = `${currentTeamSession}_통합위험성평가_및_종사자의견_백업_${today}`;
+
+        const prevTitle = document.title;
+        let parentPrevTitle = '';
+
+        // 1. 문서 제목 변경
+        document.title = filename;
+
+        // 2. 부모 창(통합포털 메인)의 제목도 직접 강제 변경
+        try {
+            if (window.parent && window.parent.document) {
+                parentPrevTitle = window.parent.document.title;
+                window.parent.document.title = filename;
+            }
+        } catch (e) {
+            console.log(e);
+        }
+
+        // 3. 인쇄/PDF 미리보기 창 출력
+        window.print();
+
+        // 4. 창이 닫힌 뒤 원래 문서 제목으로 복구
+        setTimeout(() => {
+            document.title = prevTitle;
+            try {
+                if (window.parent && window.parent.document && parentPrevTitle) {
+                    window.parent.document.title = parentPrevTitle;
+                }
+            } catch (e) {
+                console.log(e);
+            }
+        }, 1000);
     }
 
     async function handleUnifiedSave() {
@@ -1420,7 +1457,7 @@
     document.getElementById('formStandard').addEventListener('submit', async function(e) {
         e.preventDefault();
         if (isReadOnlyHistoryMode) {
-            alert('⚠️ 과거 백업 조회 모드에서는 항목 추가가 차단됩니다.');
+            alert('⚠️️ 과거 백업 조회 모드에서는 항목 추가가 차단됩니다.');
             return;
         }
 
@@ -1650,7 +1687,7 @@
 
     function loadImageToCanvas(input, type) {
         if (isReadOnlyHistoryMode) {
-            alert('⚠️️ 과거 백업 조회 모드에서는 사진 등록이 차단됩니다.');
+            alert('⚠ 과거 백업 조회 모드에서는 사진 등록이 차단됩니다.');
             return;
         }
         if (!input.files || !input.files[0]) return;
@@ -2112,7 +2149,7 @@
                                 <div class="opinion-text">${item.suggestion || '별도 제안사항 없음'}</div>
                             </div>
                             <div class="opinion-row">
-                                <div class="opinion-label">🛡️️ 관리자 검토 및 조치 결과 피드백</div>
+                                <div class="opinion-label">🛡 관리자 검토 및 조치 결과 피드백</div>
                                 <div class="opinion-text" style="background: #f0fdfa; border-color:#99f6e4;">${item.feedback || '관리자 검토 대기 중'}</div>
                             </div>
                         </div>
@@ -2183,7 +2220,7 @@
     }
 
     function downloadPDF() {
-        window.print();
+        savePDFPage();
     }
 
     window.onload = async () => {
