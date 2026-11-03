@@ -341,7 +341,7 @@
             background-color: #0f766e; color: white !important; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; margin-right: 4px; font-weight: bold;
         }
 
-        /* 🖨️️ 인쇄 및 PDF 저장 전용 스타일 */
+        /* 🖨 인쇄 및 PDF 저장 전용 스타일 */
         @media print {
             * {
                 -webkit-print-color-adjust: exact !important;
@@ -389,14 +389,19 @@
                 print-color-adjust: exact !important;
             }
         }
-    </style>
+    
+    /* 평가항목 ↔ 개선 전·후 보고서 이동 시 잠깐 강조 */
+    @keyframes flashHl { 0% { background-color: #fde047; } 100% { background-color: transparent; } }
+    .flash-hl { animation: flashHl 1.8s ease; }
+    tr.flash-hl > td { animation: flashHl 1.8s ease; }
+</style>
 </head>
 <body id="documentBody" oncontextmenu="return false;" onselectstart="return false;" ondragstart="return false;">
 
 <!-- 💡 안전조치 상세 보기 모달 -->
 <div id="detailModal">
     <div class="modal-content">
-        <h3>🛡️ 현재의 안전조치 상세 내용 (전체 수정)</h3>
+        <h3 id="modalTitle">🛡️ 상세 내용 수정</h3>
         <p style="font-size: 0.85rem; color: var(--text-muted);">전체 내용을 다 확인하고 자유롭게 수정할 수 있습니다.</p>
         <textarea id="modalTextarea"></textarea>
         <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 6px;">
@@ -914,6 +919,7 @@
     let isUpdatingFromRemote = false; 
     let isReadOnlyHistoryMode = false;
     let currentEditingItemId = null;
+    let currentModalField = null; // 'currentMeasure' 또는 'plan'
 
     function toggleViewMode() {
         const riskView = document.getElementById('view_risk_assessment');
@@ -962,6 +968,7 @@
 
     let editingRowId = null;
     let currentCmpEditId = null;
+    let currentCmpStdId = null;   
     let riskChart = null; 
 
     function initChart() {
@@ -1063,7 +1070,6 @@
         document.getElementById('dash_team_title').innerText = currentTeamSession;
         document.getElementById('op_list_team_title').innerText = currentTeamSession;
         
-        // 💡 PDF 저장 시 백업 파일명과 완벽히 동일하도록 웹페이지 제목 설정
         const today = new Date().toISOString().split('T')[0];
         document.title = `${currentTeamSession}_통합위험성평가_및_종사자의견_백업_${today}`;
 
@@ -1081,7 +1087,6 @@
         renderOpinionList();
     }
 
-    // 💡 PDF 저장: 부모 창(통합포털 메인) 및 현재 프레임 제목을 동적 변경 후 출력
     function savePDFPage() {
         const today = new Date().toISOString().split('T')[0];
         const filename = `${currentTeamSession}_통합위험성평가_및_종사자의견_백업_${today}`;
@@ -1089,10 +1094,8 @@
         const prevTitle = document.title;
         let parentPrevTitle = '';
 
-        // 1. 문서 제목 변경
         document.title = filename;
 
-        // 2. 부모 창(통합포털 메인)의 제목도 직접 강제 변경
         try {
             if (window.parent && window.parent.document) {
                 parentPrevTitle = window.parent.document.title;
@@ -1102,10 +1105,8 @@
             console.log(e);
         }
 
-        // 3. 인쇄/PDF 미리보기 창 출력
         window.print();
 
-        // 4. 창이 닫힌 뒤 원래 문서 제목으로 복구
         setTimeout(() => {
             document.title = prevTitle;
             try {
@@ -1239,18 +1240,27 @@
         }
     }
 
-    function openDetailModal(id) {
+    function openDetailModal(id, field) {
         currentEditingItemId = id;
+        currentModalField = field; // 'currentMeasure' 또는 'plan'
         const item = stdData.find(i => i.id === id);
         if (!item) return;
 
-        document.getElementById('modalTextarea').value = item.currentMeasure || '';
+        const titleEl = document.getElementById('modalTitle');
+        if (field === 'currentMeasure') {
+            titleEl.innerHTML = '🛡️ 현재의 안전조치 상세 내용 (전체 수정)';
+            document.getElementById('modalTextarea').value = item.currentMeasure || '';
+        } else {
+            titleEl.innerHTML = '📝 위험성 감소대책 상세 내용 (전체 수정)';
+            document.getElementById('modalTextarea').value = item.plan || '';
+        }
         document.getElementById('detailModal').style.display = 'flex';
     }
 
     function closeDetailModal() {
         document.getElementById('detailModal').style.display = 'none';
         currentEditingItemId = null;
+        currentModalField = null;
     }
 
     async function saveModalContent() {
@@ -1263,7 +1273,11 @@
         const newText = document.getElementById('modalTextarea').value;
         const idx = stdData.findIndex(i => i.id === currentEditingItemId);
         if (idx > -1) {
-            stdData[idx].currentMeasure = newText;
+            if (currentModalField === 'currentMeasure') {
+                stdData[idx].currentMeasure = newText;
+            } else {
+                stdData[idx].plan = newText;
+            }
             renderStdTable();
             saveToLocalStorage();
         }
@@ -1279,6 +1293,7 @@
             calcCmpScore('Before');
             calcCmpScore('After');
             currentCmpEditId = null;
+            currentCmpStdId = null;
             document.getElementById('btnSubmitCompare').innerText = '개선 전·후 보고서 생성하기';
         }
     }
@@ -1286,6 +1301,7 @@
     function fillCmpFormFromStd(id) {
         const item = stdData.find(i => i.id === id);
         if (!item) return;
+        currentCmpStdId = item.id;
 
         document.getElementById('cmp_process').value = item.process || '';
         document.getElementById('cmp_task').value = item.task || '';
@@ -1310,6 +1326,58 @@
         alert(`📋 [${item.process} - ${item.task}] 항목의 내용이 2단계 보고서 폼에 자동으로 채워졌습니다.`);
     }
 
+    function findStdForCmp(c) {
+        if (c.stdId) { 
+            const s = stdData.find(x => x.id === c.stdId); 
+            if (s) return s; 
+        }
+        return stdData.find(x => x.team === c.team && x.process === c.process && x.task === c.task) || null;
+    }
+
+    function cmpListForStd(stdId) {
+        return cmpData.filter(c => { 
+            const s = findStdForCmp(c); 
+            return s && s.id === stdId; 
+        });
+    }
+
+    function syncPlanFromReport(std, measure) {
+        const m = String(measure || '').trim();
+        if (!std || !m) return;
+
+        const curMeasure = String(std.currentMeasure || '').trim();
+        if (curMeasure && m === curMeasure) return;
+
+        const cur = String(std.plan || '').trim();
+        if (!cur) {
+            std.plan = m; 
+        } else if (cur === m || cur.includes(m)) {
+        } else if (m.includes(cur)) {
+            std.plan = m; 
+        } else {
+            std.plan = cur + '\n' + m; 
+        }
+    }
+
+    const reportCycle = {};
+    function flashEl(el) {
+        if (!el) return;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.remove('flash-hl'); void el.offsetWidth; el.classList.add('flash-hl');
+    }
+
+    function goToReport(stdId) {
+        const list = cmpListForStd(stdId);
+        if (!list.length) return;
+        const i = (reportCycle[stdId] || 0) % list.length;
+        reportCycle[stdId] = i + 1;
+        flashEl(document.getElementById('cmp_card_' + list[i].id));
+    }
+
+    function goToStd(stdId) { 
+        flashEl(document.getElementById('std_row_' + stdId)); 
+    }
+
     function renderStdTable() {
         const tbody = document.getElementById('std_tableBody'); tbody.innerHTML = '';
         const filteredStd = stdData.filter(i => i.team === currentTeamSession);
@@ -1320,10 +1388,11 @@
             filteredStd.forEach(item => {
                 const lvl = getMatrixLevel(item.f, item.s);
                 const isOp = item.isOpinion ? '<span class="tag-opinion">종사자의견</span>' : '';
+                const rptCount = cmpListForStd(item.id).length;
 
                 if (editingRowId === item.id) {
                     tbody.innerHTML += `
-                        <tr style="background-color: #f0f9ff;">
+                        <tr style="background-color: #f0f9ff;" id="std_row_${item.id}">
                             <td><input type="text" id="edit_proc_${item.id}" value="${item.process || ''}" class="inline-input"></td>
                             <td><input type="text" id="edit_task_${item.id}" value="${item.task || ''}" class="inline-input"></td>
                             <td><input type="text" id="edit_haz_${item.id}" value="${item.hazard || ''}" class="inline-input"></td>
@@ -1358,8 +1427,15 @@
                     `;
                 } else {
                     const curMeasureText = item.currentMeasure || '-';
+                    const planText = item.plan || '-';
+
+                    // 💡 보고서가 1건 이상 있을 때만 '보고서 N건 보기' 버튼 표시
+                    const reportBtnHtml = rptCount > 0 
+                        ? `<button onclick="goToReport(${item.id})" class="btn-outline no-print" style="color:#0369a1; border-color:#0369a1; background:#f0f9ff; padding:4px 6px; margin-bottom:2px; display:block; width:100%;">📄 보고서 ${rptCount}건 보기</button>` 
+                        : '';
+
                     tbody.innerHTML += `
-                        <tr>
+                        <tr id="std_row_${item.id}">
                             <td><strong>${item.process || '-'}</strong></td>
                             <td>${item.task || '-'}</td>
                             <td>${isOp}${item.hazard || '-'}</td>
@@ -1370,12 +1446,18 @@
                             <td>
                                 <div class="safety-cell-wrapper">
                                     <div class="safety-measure-summary">${curMeasureText}</div>
-                                    <button type="button" class="btn-view-detail no-print" onclick="openDetailModal(${item.id})">보기</button>
+                                    <button type="button" class="btn-view-detail no-print" onclick="openDetailModal(${item.id}, 'currentMeasure')">보기</button>
                                 </div>
                             </td>
-                            <td style="white-space: pre-wrap; font-size: 0.85rem;">${item.plan || '-'}</td>
+                            <td>
+                                <div class="safety-cell-wrapper">
+                                    <div class="safety-measure-summary">${planText}</div>
+                                    <button type="button" class="btn-view-detail no-print" onclick="openDetailModal(${item.id}, 'plan')">보기</button>
+                                </div>
+                            </td>
                             <td style="text-align:center;">${getStatusBadge(item.status)}</td>
                             <td class="no-print" style="text-align:center; white-space:nowrap;">
+                                ${reportBtnHtml}
                                 <button onclick="fillCmpFormFromStd(${item.id})" class="btn-outline" style="color:#0f766e; border-color:#0f766e; padding:4px 6px; margin-bottom:2px; display:block; width:100%;">보고서작성</button>
                                 <button onclick="startInlineEdit(${item.id})" class="btn-outline" style="color:var(--secondary); border-color:var(--secondary); padding:4px 6px; margin-right:2px; display:inline-block; width:48%;">수정</button>
                                 <button onclick="delStd(${item.id})" class="btn-outline" style="color:var(--danger); border-color:var(--danger); padding:4px 6px; display:inline-block; width:48%;">삭제</button>
@@ -1425,6 +1507,14 @@
             stdData[idx].plan = document.getElementById(`edit_plan_${id}`).value;
             stdData[idx].status = document.getElementById(`edit_status_${id}`).value;
 
+            cmpData.forEach(c => {
+                if (c.stdId === id || (!c.stdId && c.team === stdData[idx].team && c.process === stdData[idx].process && c.task === stdData[idx].task)) {
+                    c.stdId = id;
+                    c.process = stdData[idx].process;
+                    c.task = stdData[idx].task;
+                }
+            });
+
             if (stdData[idx].opinionId) {
                 const opIdx = opinionList.findIndex(o => o.id === stdData[idx].opinionId);
                 if (opIdx > -1) {
@@ -1435,7 +1525,7 @@
         }
         editingRowId = null;
         renderStdTable();
-        renderOpinionList();
+        renderCmpCards();
         saveToLocalStorage();
     }
 
@@ -1457,7 +1547,7 @@
     document.getElementById('formStandard').addEventListener('submit', async function(e) {
         e.preventDefault();
         if (isReadOnlyHistoryMode) {
-            alert('⚠️️ 과거 백업 조회 모드에서는 항목 추가가 차단됩니다.');
+            alert('⚠️ 과거 백업 조회 모드에서는 항목 추가가 차단됩니다.');
             return;
         }
 
@@ -1687,7 +1777,7 @@
 
     function loadImageToCanvas(input, type) {
         if (isReadOnlyHistoryMode) {
-            alert('⚠ 과거 백업 조회 모드에서는 사진 등록이 차단됩니다.');
+            alert('⚠️ 과거 백업 조회 모드에서는 사진 등록이 차단됩니다.');
             return;
         }
         if (!input.files || !input.files[0]) return;
@@ -1813,12 +1903,13 @@
 
     async function deleteCmpCard(id) {
         if (isReadOnlyHistoryMode) {
-            alert('⚠️ 과거 백업 조회 모드에서는 보고서 삭제가 차단됩니다.');
+            alert('⚠️ 과거 백업 조회 모드에서는 보고서 삭제가 차단되었습니다.');
             return;
         }
         if(confirm('해당 상세 보고서를 정말 삭제하시겠습니까?')) {
             cmpData = cmpData.filter(item => item.id !== id);
             renderCmpCards();
+            renderStdTable();
             saveToLocalStorage(); 
         }
     }
@@ -1846,6 +1937,7 @@
         calcCmpScore('Before'); calcCmpScore('After');
         restoreCanvasFromBase64(item.imgB, 'Before'); restoreCanvasFromBase64(item.imgA, 'After');
 
+        currentCmpStdId = item.stdId || null;
         currentCmpEditId = id; 
         document.getElementById('btnSubmitCompare').innerText = '✏️ 개선 전·후 보고서 수정 완료';
         document.getElementById('formCompare').scrollIntoView({behavior: 'smooth'});
@@ -1857,14 +1949,21 @@
 
         filteredCmp.forEach(item => {
             const lb = getMatrixLevel(item.fb, item.sb); const la = getMatrixLevel(item.fa, item.sa);
+            const linkedStd = findStdForCmp(item);
             const statusBadge = item.status === 'completed' ? `<span style="background:var(--success-light); color:#047857; border:1px solid var(--success);" class="badge">조치 완료</span>` : `<span style="background:var(--danger-light); color:#b91c1c; border:1px solid var(--danger);" class="badge">미조치</span>`;
             
+            // 💡 보고서 카드 제목 옆 수정, 삭제 앞에 📋 평가항목 보기 버튼 추가 (연결된 평가항목이 있는 경우)
+            const viewStdBtn = linkedStd 
+                ? `<button class="btn-outline no-print" onclick="goToStd(${linkedStd.id})" style="padding:4px 8px; font-size:0.8rem; border-color:#0369a1; color:#0369a1; background:#f0f9ff;">📋 평가항목 보기</button>` 
+                : '';
+
             list.innerHTML += `
-                <div class="report-card">
+                <div class="report-card" id="cmp_card_${item.id}">
                     <div class="report-header">
                         <h3><span style="color:var(--primary); font-weight:900; margin-right:8px;">[${item.process}]</span> ${item.task}</h3>
                         <div style="display:flex; gap:10px; align-items:center;">
                             ${statusBadge}
+                            ${viewStdBtn}
                             <button class="btn-outline no-print" onclick="editCmpCard(${item.id})" style="padding:4px 8px; font-size:0.8rem; border-color:var(--primary); color:var(--primary);">수정</button>
                             <button class="btn-outline no-print" onclick="deleteCmpCard(${item.id})" style="padding:4px 8px; font-size:0.8rem; border-color:var(--danger); color:var(--danger);">삭제</button>
                         </div>
@@ -1924,9 +2023,17 @@
             imgA: imgA
         };
 
+        const linkedStd = findStdForCmp(Object.assign({ stdId: currentCmpStdId }, newCardData));
+        if (linkedStd) newCardData.stdId = linkedStd.id;
+        else if (currentCmpStdId) newCardData.stdId = currentCmpStdId;
+
         if (currentCmpEditId) {
             const idx = cmpData.findIndex(x => x.id === currentCmpEditId);
-            if (idx > -1) { newCardData.id = currentCmpEditId; cmpData[idx] = newCardData; }
+            if (idx > -1) { 
+                newCardData.id = currentCmpEditId; 
+                if (!newCardData.stdId && cmpData[idx].stdId) newCardData.stdId = cmpData[idx].stdId;
+                cmpData[idx] = newCardData; 
+            }
             currentCmpEditId = null; 
             document.getElementById('btnSubmitCompare').innerText = '개선 전·후 보고서 생성하기'; 
         } else {
@@ -1934,9 +2041,16 @@
             cmpData.unshift(newCardData);
         }
 
+        const targetStdForSync = findStdForCmp(newCardData);
+        if (targetStdForSync) {
+            syncPlanFromReport(targetStdForSync, newCardData.measure);
+        }
+
+        renderStdTable();
         renderCmpCards(); 
         saveToLocalStorage(); 
 
+        currentCmpStdId = null;
         this.reset();
         document.getElementById('cmp_evalDate').valueAsDate = new Date();
         removeImage('Before');
@@ -2003,7 +2117,7 @@
     document.getElementById('opinionForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         if (isReadOnlyHistoryMode) {
-            alert('⚠ 과거 백업 조회 모드에서는 의견 등록이 차단됩니다.');
+            alert('⚠️ 과거 백업 조회 모드에서는 의견 등록이 차단됩니다.');
             return;
         }
 
@@ -2038,14 +2152,17 @@
         const hazardText = `[${location}] ${opinion} (제안자: ${worker})`;
 
         const stdIdx = stdData.findIndex(s => s.opinionId === opId);
+        let targetStdId = stdIdx > -1 ? stdData[stdIdx].id : (Date.now() + 100);
+
         if (stdIdx > -1) {
             stdData[stdIdx].process = process;
+            stdData[stdIdx].task = '현장 종사자 제보';
             stdData[stdIdx].hazard = hazardText;
             stdData[stdIdx].plan = planText;
             stdData[stdIdx].status = status;
         } else {
             stdData.unshift({
-                id: Date.now() + 100,
+                id: targetStdId,
                 opinionId: opId,
                 isOpinion: true,
                 team: currentTeamSession,
@@ -2063,7 +2180,8 @@
 
         const cmpIdx = cmpData.findIndex(c => c.opinionId === opId);
         const cmpCardData = {
-            id: cmpIdx > -1 ? cmpData[cmpIdx].id : Date.now() + 200,
+            id: cmpIdx > -1 ? cmpData[cmpIdx].id : (Date.now() + 200),
+            stdId: targetStdId,
             opinionId: opId,
             team: currentTeamSession,
             process: process,
