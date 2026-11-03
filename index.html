@@ -1307,7 +1307,8 @@
         const filteredStd = stdData.filter(i => i.team === currentTeamSession);
 
         filteredStd.forEach(item => {
-            const lvl = getMatrixLevel(item.f, item.s);
+            const effectiveRisk = getStdEffectiveRisk(item);
+            const lvl = getMatrixLevel(effectiveRisk.f, effectiveRisk.s);
             if (lvl.type === 'high') high++; else if (lvl.type === 'mid') mid++; else low++;
         });
 
@@ -1491,6 +1492,20 @@
         renderStdTable();
     }
 
+    // 평가항목의 현재 위험점수: 미완료는 개선 전, 완료는 최신 완료보고서의 개선 후 점수
+    function getStdEffectiveRisk(item) {
+        const reports = cmpData.filter(c => c.team === item.team && (
+            c.stdId === item.id ||
+            (c.code && String(c.code).trim() === String(item.code || '').trim()) ||
+            (c.process === item.process && c.task === item.task)
+        ));
+        const completedReport = reports.find(c => c.status === 'completed' || !!c.compDate);
+        if (item.status === 'completed' && completedReport && Number.isFinite(Number(completedReport.fa)) && Number.isFinite(Number(completedReport.sa))) {
+            return { f: Number(completedReport.fa), s: Number(completedReport.sa), source: 'after' };
+        }
+        return { f: Number(item.f) || 1, s: Number(item.s) || 1, source: 'before' };
+    }
+
     function renderStdTable() {
         const tbody = document.getElementById('std_tableBody'); tbody.innerHTML = '';
         let filteredStd = stdData.filter(i => i.team === currentTeamSession);
@@ -1518,7 +1533,8 @@
             tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:30px; color:#94a3b8;">등록된 위험성평가 항목이 없습니다.</td></tr>';
         } else {
             filteredStd.forEach(item => {
-                const lvl = getMatrixLevel(item.f, item.s);
+                const effectiveRisk = getStdEffectiveRisk(item);
+                const lvl = getMatrixLevel(effectiveRisk.f, effectiveRisk.s);
                 const isOp = item.isOpinion ? '<span class="tag-opinion">종사자의견</span>' : '';
                 const rptCount = cmpListForStd(item.id).length;
 
@@ -1574,8 +1590,8 @@
                             <td>${item.task || '-'}</td>
                             <td>${isOp}${item.hazard || '-'}</td>
                             <td>${item.result || '-'}</td>
-                            <td style="text-align:center;">${item.f}</td>
-                            <td style="text-align:center;">${item.s}</td>
+                            <td style="text-align:center;">${effectiveRisk.f}</td>
+                            <td style="text-align:center;">${effectiveRisk.s}</td>
                             <td style="text-align:center;"><span class="score-tag" style="background-color:${lvl.bg}">${lvl.score}</span></td>
                             <td>
                                 <div class="safety-cell-wrapper">
@@ -1748,7 +1764,8 @@
         ]];
         
         filteredStd.forEach(item => {
-            const lvl = getMatrixLevel(item.f, item.s);
+            const effectiveRisk = getStdEffectiveRisk(item);
+            const lvl = getMatrixLevel(effectiveRisk.f, effectiveRisk.s);
             const statusKor = item.status === 'completed' ? '조치 완료' : (item.status === 'inprogress' ? '조치 진행중' : '검토 접수');
             wsData.push([
                 item.process || '',
@@ -2211,6 +2228,10 @@
         const targetStdForSync = findStdForCmp(newCardData);
         if (targetStdForSync) {
             syncPlanFromReport(targetStdForSync, newCardData.measure);
+            // 보고서 완료 여부를 평가항목 상태와 연결합니다. 완료 전에는 개선 전 점수를 유지합니다.
+            targetStdForSync.status = newCardData.compDate ? 'completed' : 'inprogress';
+            targetStdForSync.afterF = newCardData.fa;
+            targetStdForSync.afterS = newCardData.sa;
         }
 
         renderStdTable();
