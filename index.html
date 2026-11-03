@@ -178,6 +178,11 @@
         .btn-outline { background: white; border: 1px solid var(--border); color: var(--text-main); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight:bold;}
         .btn-outline:hover { background: var(--bg-color); }
 
+        .sort-btn {
+            background: none; border: none; cursor: pointer; font-size: 0.8rem; color: #1e3a8a; font-weight: bold; margin-left: 4px; padding: 2px 4px; border-radius: 3px;
+        }
+        .sort-btn:hover { background-color: #e2e8f0; }
+
         .score-tag {
             display: inline-block;
             min-width: 30px;
@@ -390,7 +395,6 @@
             }
         }
     
-    /* 평가항목 ↔ 개선 전·후 보고서 이동 시 잠깐 강조 */
     @keyframes flashHl { 0% { background-color: #fde047; } 100% { background-color: transparent; } }
     .flash-hl { animation: flashHl 1.8s ease; }
     tr.flash-hl > td { animation: flashHl 1.8s ease; }
@@ -631,6 +635,7 @@
             <form id="formStandard" class="no-print">
                 <div class="form-grid">
                     <div class="form-group"><label>공정명</label><input type="text" id="std_process" placeholder="예: 전기" required></div>
+                    <div class="form-group"><label>코드번호 (고유번호)</label><input type="text" id="std_code" placeholder="예: 001 (자동 생성)" required></div>
                     <div class="form-group"><label>세부작업명</label><input type="text" id="std_task" placeholder="예: 등기구 교체작업" required></div>
                     <div class="form-group"><label>위험요인 (Hazard)</label><input type="text" id="std_hazard" placeholder="예: 협착위험 또는 감전" required></div>
                 </div>
@@ -682,16 +687,17 @@
                     <thead>
                         <tr>
                             <th style="width:8%;">공정명</th>
-                            <th style="width:11%;">세부작업명</th>
-                            <th style="width:15%;">위험요인 (Hazard)</th>
-                            <th style="width:15%;">위험발생 상황 및 결과</th>
+                            <th style="width:9%;">코드번호 <button type="button" class="sort-btn" onclick="toggleSort('code')" title="코드번호 정렬">↕ 정렬</button></th>
+                            <th style="width:11%;">세부작업명 <button type="button" class="sort-btn" onclick="toggleSort('task')" title="세부작업명 정렬">↕ 정렬</button></th>
+                            <th style="width:14%;">위험요인 (Hazard)</th>
+                            <th style="width:14%;">위험발생 상황 및 결과</th>
                             <th style="text-align:center; width:4%;">가능성</th>
                             <th style="text-align:center; width:4%;">강도</th>
                             <th style="text-align:center; width:5%;">위험도</th>
-                            <th style="width:18%;">현재의 안전조치</th>
-                            <th style="width:12%;">위험성 감소대책</th>
-                            <th style="text-align:center; width:8%;">진행상태</th>
-                            <th class="no-print" style="text-align:center; width:12%; min-width:110px;">관리</th>
+                            <th style="width:15%;">현재의 안전조치</th>
+                            <th style="width:10%;">위험성 감소대책</th>
+                            <th style="text-align:center; width:6%;">진행상태</th>
+                            <th class="no-print" style="text-align:center; width:10%; min-width:110px;">관리</th>
                         </tr>
                     </thead>
                     <tbody id="std_tableBody"></tbody>
@@ -710,6 +716,7 @@
             <form id="formCompare">
                 <div class="form-grid">
                     <div class="form-group"><label>공정명</label><input type="text" id="cmp_process" placeholder="예: 전기" required></div>
+                    <div class="form-group"><label>코드번호 (고유번호)</label><input type="text" id="cmp_code" placeholder="예: 001" oninput="onCmpCodeInput(this.value)" required></div>
                     <div class="form-group"><label>세부작업명</label><input type="text" id="cmp_task" placeholder="예: 등기구 교체작업" required></div>
                     <div class="form-group"><label>평가일자</label><input type="date" id="cmp_evalDate" required></div>
                     <div class="form-group"><label>완료일자 (미조치시 비움)</label><input type="date" id="cmp_compDate"></div>
@@ -919,7 +926,12 @@
     let isUpdatingFromRemote = false; 
     let isReadOnlyHistoryMode = false;
     let currentEditingItemId = null;
-    let currentModalField = null; // 'currentMeasure' 또는 'plan'
+    let currentModalField = null;
+
+    let sortState = {
+        column: null,
+        direction: 'asc'
+    };
 
     function toggleViewMode() {
         const riskView = document.getElementById('view_risk_assessment');
@@ -993,25 +1005,36 @@
     }
 
     function loadSavedData() {
-        const savedStd = localStorage.getItem('risk_stdData_v34');
-        const savedCmp = localStorage.getItem('risk_cmpData_v34');
-        const savedOp = localStorage.getItem('risk_opinionData_v34');
+        const savedStd = localStorage.getItem('risk_stdData_v37');
+        const savedCmp = localStorage.getItem('risk_cmpData_v37');
+        const savedOp = localStorage.getItem('risk_opinionData_v37');
         
         if (savedStd) stdData = JSON.parse(savedStd);
         if (savedCmp) cmpData = JSON.parse(savedCmp);
         if (savedOp) opinionList = JSON.parse(savedOp);
 
-        stdData.forEach(i => { if (!i.team) i.team = '전기팀'; });
-        cmpData.forEach(i => { if (!i.team) i.team = '전기팀'; });
+        // 💡 기존 데이터에 코드번호가 없거나 비어있는 경우 순차적으로 자동 채번 (001, 002...)
+        let autoIdx = 1;
+        stdData.forEach(i => { 
+            if (!i.team) i.team = '전기팀'; 
+            if (!i.code || String(i.code).trim() === '' || String(i.code).trim() === '-') {
+                i.code = String(autoIdx).padStart(3, '0');
+            }
+            autoIdx++;
+        });
+
+        cmpData.forEach(i => { 
+            if (!i.team) i.team = '전기팀'; 
+        });
         opinionList.forEach(i => { if (!i.team) i.team = '전기팀'; });
     }
 
     function saveToLocalStorage() {
         if (isReadOnlyHistoryMode) return;
         try {
-            localStorage.setItem('risk_stdData_v34', JSON.stringify(stdData));
-            localStorage.setItem('risk_cmpData_v34', JSON.stringify(cmpData));
-            localStorage.setItem('risk_opinionData_v34', JSON.stringify(opinionList));
+            localStorage.setItem('risk_stdData_v37', JSON.stringify(stdData));
+            localStorage.setItem('risk_cmpData_v37', JSON.stringify(cmpData));
+            localStorage.setItem('risk_opinionData_v37', JSON.stringify(opinionList));
         } catch (e) {
             console.warn("로컬 스토리지 용량 한계 주의:", e);
         }
@@ -1051,16 +1074,47 @@
                     cmpData = cmpData.filter(i => i.team !== currentTeamSession).concat(data.cmpData || []);
                     opinionList = opinionList.filter(i => i.team !== currentTeamSession).concat(data.opinionList || []);
 
+                    // 불러온 항목 중 코드번호가 없는 것 자동 채번
+                    let autoIdx = 1;
+                    stdData.forEach(i => {
+                        if (!i.code || String(i.code).trim() === '' || String(i.code).trim() === '-') {
+                            i.code = String(autoIdx).padStart(3, '0');
+                        }
+                        autoIdx++;
+                    });
+
                     saveToLocalStorage();
                     renderStdTable();
                     renderCmpCards();
                     renderOpinionList();
+                    autoGenerateNextCode();
 
                     isUpdatingFromRemote = false;
                 }
             }, (error) => {
                 console.error("실시간 동기화 오류:", error);
             });
+    }
+
+    // 💡 다음 코드 번호 자동 생성 함수 (001, 002 형식)
+    function autoGenerateNextCode() {
+        const filtered = stdData.filter(i => i.team === currentTeamSession);
+        if (filtered.length === 0) {
+            document.getElementById('std_code').value = '001';
+            return;
+        }
+
+        let maxNum = 0;
+        filtered.forEach(item => {
+            const codeNum = parseInt(item.code, 10);
+            if (!isNaN(codeNum) && codeNum > maxNum) {
+                maxNum = codeNum;
+            }
+        });
+
+        const nextNum = maxNum + 1;
+        const formattedCode = String(nextNum).padStart(3, '0');
+        document.getElementById('std_code').value = formattedCode;
     }
 
     async function changeTeam() {
@@ -1085,6 +1139,7 @@
         renderStdTable();
         renderCmpCards();
         renderOpinionList();
+        autoGenerateNextCode();
     }
 
     function savePDFPage() {
@@ -1093,7 +1148,6 @@
 
         const prevTitle = document.title;
         let parentPrevTitle = '';
-
         document.title = filename;
 
         try {
@@ -1101,9 +1155,7 @@
                 parentPrevTitle = window.parent.document.title;
                 window.parent.document.title = filename;
             }
-        } catch (e) {
-            console.log(e);
-        }
+        } catch (e) { console.log(e); }
 
         window.print();
 
@@ -1113,9 +1165,7 @@
                 if (window.parent && window.parent.document && parentPrevTitle) {
                     window.parent.document.title = parentPrevTitle;
                 }
-            } catch (e) {
-                console.log(e);
-            }
+            } catch (e) { console.log(e); }
         }, 1000);
     }
 
@@ -1242,7 +1292,7 @@
 
     function openDetailModal(id, field) {
         currentEditingItemId = id;
-        currentModalField = field; // 'currentMeasure' 또는 'plan'
+        currentModalField = field; 
         const item = stdData.find(i => i.id === id);
         if (!item) return;
 
@@ -1304,6 +1354,7 @@
         currentCmpStdId = item.id;
 
         document.getElementById('cmp_process').value = item.process || '';
+        document.getElementById('cmp_code').value = item.code || '';
         document.getElementById('cmp_task').value = item.task || '';
         document.getElementById('cmp_cause').value = `[위험요인] ${item.hazard || ''}\n[발생상황] ${item.result || ''}`;
         document.getElementById('cmp_measure').value = item.plan || item.currentMeasure || '';
@@ -1323,10 +1374,31 @@
         document.getElementById('cmp_evalDate').valueAsDate = new Date();
         document.getElementById('formCompare').scrollIntoView({ behavior: 'smooth' });
 
-        alert(`📋 [${item.process} - ${item.task}] 항목의 내용이 2단계 보고서 폼에 자동으로 채워졌습니다.`);
+        alert(`📋 [코드: ${item.code || '없음'}] ${item.process} - ${item.task} 항목의 내용이 2단계 보고서 폼에 채워졌습니다.`);
+    }
+
+    function onCmpCodeInput(codeVal) {
+        const codeStr = String(codeVal || '').trim();
+        if (!codeStr) return;
+
+        const foundStd = stdData.find(x => x.team === currentTeamSession && String(x.code || '').trim() === codeStr);
+        if (foundStd) {
+            document.getElementById('cmp_process').value = foundStd.process || '';
+            document.getElementById('cmp_task').value = foundStd.task || '';
+            document.getElementById('cmp_cause').value = `[위험요인] ${foundStd.hazard || ''}\n[발생상황] ${foundStd.result || ''}`;
+            document.getElementById('cmp_measure').value = foundStd.plan || foundStd.currentMeasure || '';
+            document.getElementById('cmp_fBefore').value = foundStd.f || 3;
+            document.getElementById('cmp_sBefore').value = foundStd.s || 2;
+            calcCmpScore('Before');
+            currentCmpStdId = foundStd.id;
+        }
     }
 
     function findStdForCmp(c) {
+        if (c.code) {
+            const byCode = stdData.find(x => x.team === c.team && String(x.code || '').trim() === String(c.code).trim());
+            if (byCode) return byCode;
+        }
         if (c.stdId) { 
             const s = stdData.find(x => x.id === c.stdId); 
             if (s) return s; 
@@ -1378,12 +1450,41 @@
         flashEl(document.getElementById('std_row_' + stdId)); 
     }
 
+    function toggleSort(column) {
+        if (sortState.column === column) {
+            sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortState.column = column;
+            sortState.direction = 'asc';
+        }
+        renderStdTable();
+    }
+
     function renderStdTable() {
         const tbody = document.getElementById('std_tableBody'); tbody.innerHTML = '';
-        const filteredStd = stdData.filter(i => i.team === currentTeamSession);
+        let filteredStd = stdData.filter(i => i.team === currentTeamSession);
+
+        if (sortState.column) {
+            filteredStd.sort((a, b) => {
+                let valA = a[sortState.column] || '';
+                let valB = b[sortState.column] || '';
+                
+                if (sortState.column === 'code') {
+                    let numA = parseFloat(valA);
+                    let numB = parseFloat(valB);
+                    if (!isNaN(numA) && !isNaN(numB)) {
+                        return sortState.direction === 'asc' ? numA - numB : numB - numA;
+                    }
+                }
+
+                if (valA < valB) return sortState.direction === 'asc' ? -1 : 1;
+                if (valA > valB) return sortState.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
 
         if (filteredStd.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding:30px; color:#94a3b8;">등록된 위험성평가 항목이 없습니다.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:30px; color:#94a3b8;">등록된 위험성평가 항목이 없습니다.</td></tr>';
         } else {
             filteredStd.forEach(item => {
                 const lvl = getMatrixLevel(item.f, item.s);
@@ -1394,6 +1495,7 @@
                     tbody.innerHTML += `
                         <tr style="background-color: #f0f9ff;" id="std_row_${item.id}">
                             <td><input type="text" id="edit_proc_${item.id}" value="${item.process || ''}" class="inline-input"></td>
+                            <td><input type="text" id="edit_code_${item.id}" value="${item.code || ''}" class="inline-input"></td>
                             <td><input type="text" id="edit_task_${item.id}" value="${item.task || ''}" class="inline-input"></td>
                             <td><input type="text" id="edit_haz_${item.id}" value="${item.hazard || ''}" class="inline-input"></td>
                             <td><input type="text" id="edit_res_${item.id}" value="${item.result || ''}" class="inline-input"></td>
@@ -1428,8 +1530,8 @@
                 } else {
                     const curMeasureText = item.currentMeasure || '-';
                     const planText = item.plan || '-';
+                    const codeText = item.code ? `<span style="font-weight:bold; color:var(--secondary); background:#eff6ff; padding:2px 6px; border-radius:4px;">${item.code}</span>` : '-';
 
-                    // 💡 보고서가 1건 이상 있을 때만 '보고서 N건 보기' 버튼 표시
                     const reportBtnHtml = rptCount > 0 
                         ? `<button onclick="goToReport(${item.id})" class="btn-outline no-print" style="color:#0369a1; border-color:#0369a1; background:#f0f9ff; padding:4px 6px; margin-bottom:2px; display:block; width:100%;">📄 보고서 ${rptCount}건 보기</button>` 
                         : '';
@@ -1437,6 +1539,7 @@
                     tbody.innerHTML += `
                         <tr id="std_row_${item.id}">
                             <td><strong>${item.process || '-'}</strong></td>
+                            <td>${codeText}</td>
                             <td>${item.task || '-'}</td>
                             <td>${isOp}${item.hazard || '-'}</td>
                             <td>${item.result || '-'}</td>
@@ -1495,9 +1598,18 @@
             alert('⚠️ 과거 백업 조회 모드에서는 저장이 차단됩니다.');
             return;
         }
+        
+        const newCode = document.getElementById(`edit_code_${id}`).value.trim();
+        const duplicate = stdData.find(i => i.team === currentTeamSession && i.id !== id && String(i.code).trim() === newCode);
+        if (duplicate && newCode !== '') {
+            alert(`⚠️ 이미 존재하는 코드번호입니다 (${newCode}). 중복 등록할 수 없습니다.`);
+            return;
+        }
+
         const idx = stdData.findIndex(i => i.id === id);
         if (idx > -1) {
             stdData[idx].process = document.getElementById(`edit_proc_${id}`).value;
+            stdData[idx].code = newCode;
             stdData[idx].task = document.getElementById(`edit_task_${id}`).value;
             stdData[idx].hazard = document.getElementById(`edit_haz_${id}`).value;
             stdData[idx].result = document.getElementById(`edit_res_${id}`).value;
@@ -1508,9 +1620,10 @@
             stdData[idx].status = document.getElementById(`edit_status_${id}`).value;
 
             cmpData.forEach(c => {
-                if (c.stdId === id || (!c.stdId && c.team === stdData[idx].team && c.process === stdData[idx].process && c.task === stdData[idx].task)) {
+                if (c.stdId === id || (c.code && c.code === stdData[idx].code)) {
                     c.stdId = id;
                     c.process = stdData[idx].process;
+                    c.code = stdData[idx].code;
                     c.task = stdData[idx].task;
                 }
             });
@@ -1542,6 +1655,7 @@
         renderStdTable(); 
         renderOpinionList();
         saveToLocalStorage(); 
+        autoGenerateNextCode();
     }
 
     document.getElementById('formStandard').addEventListener('submit', async function(e) {
@@ -1552,6 +1666,7 @@
         }
 
         const process = document.getElementById('std_process').value;
+        const code = document.getElementById('std_code').value.trim();
         const task = document.getElementById('std_task').value;
         const hazard = document.getElementById('std_hazard').value;
         const result = document.getElementById('std_result').value;
@@ -1560,10 +1675,18 @@
         const s = parseInt(document.getElementById('std_sev').value);
         const plan = document.getElementById('std_plan').value;
 
+        const duplicate = stdData.find(i => i.team === currentTeamSession && String(i.code).trim() === code);
+        if (duplicate) {
+            alert(`⚠️ 이미 존재하는 코드번호입니다 (${code}). 동일한 팀 내에서 코드번호는 중복될 수 없습니다.`);
+            document.getElementById('std_code').focus();
+            return;
+        }
+
         stdData.unshift({ 
             id: Date.now(), 
             team: currentTeamSession, 
             process, 
+            code,
             task, 
             hazard, 
             result, 
@@ -1576,6 +1699,7 @@
 
         renderStdTable();
         saveToLocalStorage(); 
+        autoGenerateNextCode();
 
         document.getElementById('std_task').value = '';
         document.getElementById('std_hazard').value = '';
@@ -1587,7 +1711,7 @@
     function downloadExcel() {
         const filteredStd = stdData.filter(i => i.team === currentTeamSession);
         const wsData = [[
-            '공정명', '세부작업명', '유해위험요인 (Hazard)', '위험발생 상황 및 결과', 
+            '공정명', '코드번호', '세부작업명', '유해위험요인 (Hazard)', '위험발생 상황 및 결과', 
             '가능성(빈도)', '강도(중대성)', '위험도 점수', '위험도 등급', 
             '현재의 안전조치 사항', '위험성 감소대책', '진행상태'
         ]];
@@ -1597,6 +1721,7 @@
             const statusKor = item.status === 'completed' ? '조치 완료' : (item.status === 'inprogress' ? '조치 진행중' : '검토 접수');
             wsData.push([
                 item.process || '',
+                item.code || '',
                 item.task || '',
                 item.hazard || '',
                 item.result || '',
@@ -1612,7 +1737,7 @@
         const wb = XLSX.utils.book_new(); 
         const ws = XLSX.utils.aoa_to_sheet(wsData);
         ws['!cols'] = [
-            {wch: 12}, {wch: 18}, {wch: 30}, {wch: 30}, 
+            {wch: 12}, {wch: 12}, {wch: 18}, {wch: 30}, {wch: 30}, 
             {wch: 10}, {wch: 10}, {wch: 10}, {wch: 10}, 
             {wch: 35}, {wch: 30}, {wch: 12}
         ];
@@ -1652,6 +1777,7 @@
 
                 let count = 0;
                 let currentProc = '전기';
+                let currentCode = '001';
                 let currentTask = '일반점검';
 
                 for (let i = headerRowIdx + 1; i < rows.length; i++) {
@@ -1662,43 +1788,51 @@
                         currentProc = row[0].toString().trim();
                     }
                     if (row[1] && row[1].toString().trim() !== '') {
-                        currentTask = row[1].toString().trim();
+                        currentCode = row[1].toString().trim();
+                    }
+                    if (row[2] && row[2].toString().trim() !== '') {
+                        currentTask = row[2].toString().trim();
                     }
 
-                    let hazard = row[3] || row[2] || row[4] || '';
+                    let hazard = row[4] || row[3] || row[5] || '';
                     hazard = hazard.toString().trim();
 
                     if (!hazard || hazard === '위험요인' || hazard === '위험세부분류' || hazard === '원인') continue;
 
-                    let result = row[5] ? row[5].toString().trim() : '작업 중 위험요인 발생';
-                    let currentMeasure = row[6] ? row[6].toString().trim() : '현재의 안전조치 유지';
+                    let result = row[6] ? row[6].toString().trim() : '작업 중 위험요인 발생';
+                    let currentMeasure = row[9] ? row[9].toString().trim() : '현재의 안전조치 유지';
 
                     const f = parseInt(row[7]) || 2;
                     const s = parseInt(row[8]) || 3;
                     let plan = row[10] ? row[10].toString().trim() : '현재의 안전조치 유지';
 
-                    stdData.push({
-                        id: Date.now() + i,
-                        team: currentTeamSession,
-                        process: currentProc,
-                        task: currentTask,
-                        hazard: hazard.replace(/\n/g, ' '),
-                        result: result.replace(/\n/g, ' '),
-                        currentMeasure: currentMeasure.replace(/\n/g, ' '),
-                        f: f,
-                        s: s,
-                        plan: plan.replace(/\n/g, ' '),
-                        status: 'completed'
-                    });
-                    count++;
+                    const exists = stdData.some(i => i.team === currentTeamSession && String(i.code) === String(currentCode));
+                    if (!exists) {
+                        stdData.push({
+                            id: Date.now() + i,
+                            team: currentTeamSession,
+                            process: currentProc,
+                            code: currentCode,
+                            task: currentTask,
+                            hazard: hazard.replace(/\n/g, ' '),
+                            result: result.replace(/\n/g, ' '),
+                            currentMeasure: currentMeasure.replace(/\n/g, ' '),
+                            f: f,
+                            s: s,
+                            plan: plan.replace(/\n/g, ' '),
+                            status: 'completed'
+                        });
+                        count++;
+                    }
                 }
 
                 if (count > 0) {
                     renderStdTable();
                     saveToLocalStorage();
+                    autoGenerateNextCode();
                     alert(`✅ [${currentTeamSession}] 엑셀 스마트 불러오기 성공!\n총 ${count}건의 위험성평가 항목을 추출하였습니다.`);
                 } else {
-                    alert("불러올 수 있는 유효한 데이터가 없습니다.");
+                    alert("중복되지 않는 새로운 데이터가 없거나 불러올 항목이 없습니다.");
                 }
             } catch (err) {
                 console.error(err);
@@ -1923,6 +2057,7 @@
         if(!item) return;
 
         document.getElementById('cmp_process').value = item.process;
+        document.getElementById('cmp_code').value = item.code || '';
         document.getElementById('cmp_task').value = item.task;
         document.getElementById('cmp_cause').value = item.cause;
         document.getElementById('cmp_result').value = item.result;
@@ -1952,7 +2087,7 @@
             const linkedStd = findStdForCmp(item);
             const statusBadge = item.status === 'completed' ? `<span style="background:var(--success-light); color:#047857; border:1px solid var(--success);" class="badge">조치 완료</span>` : `<span style="background:var(--danger-light); color:#b91c1c; border:1px solid var(--danger);" class="badge">미조치</span>`;
             
-            // 💡 보고서 카드 제목 옆 수정, 삭제 앞에 📋 평가항목 보기 버튼 추가 (연결된 평가항목이 있는 경우)
+            const codeDisp = item.code ? `<span style="color:var(--secondary); font-weight:bold; margin-right:6px;">[${item.code}]</span>` : '';
             const viewStdBtn = linkedStd 
                 ? `<button class="btn-outline no-print" onclick="goToStd(${linkedStd.id})" style="padding:4px 8px; font-size:0.8rem; border-color:#0369a1; color:#0369a1; background:#f0f9ff;">📋 평가항목 보기</button>` 
                 : '';
@@ -1960,7 +2095,7 @@
             list.innerHTML += `
                 <div class="report-card" id="cmp_card_${item.id}">
                     <div class="report-header">
-                        <h3><span style="color:var(--primary); font-weight:900; margin-right:8px;">[${item.process}]</span> ${item.task}</h3>
+                        <h3><span style="color:var(--primary); font-weight:900; margin-right:8px;">[${item.process}]</span> ${codeDisp}${item.task}</h3>
                         <div style="display:flex; gap:10px; align-items:center;">
                             ${statusBadge}
                             ${viewStdBtn}
@@ -2008,6 +2143,7 @@
         const newCardData = {
             team: currentTeamSession, 
             process: document.getElementById('cmp_process').value, 
+            code: document.getElementById('cmp_code').value,
             task: document.getElementById('cmp_task').value, 
             cause: document.getElementById('cmp_cause').value, 
             result: document.getElementById('cmp_result').value, 
@@ -2167,6 +2303,7 @@
                 isOpinion: true,
                 team: currentTeamSession,
                 process: process,
+                code: '',
                 task: '현장 종사자 제보',
                 hazard: hazardText,
                 result: '종사자 제보 유해·위험요인 발생',
@@ -2185,6 +2322,7 @@
             opinionId: opId,
             team: currentTeamSession,
             process: process,
+            code: '',
             task: `종사자 제보 (${location})`,
             cause: `[종사자 제보] ${opinion} (작성자: ${worker})`,
             result: suggestion ? `[개선희망대책] ${suggestion}` : '현장 의견 반영 조치',
@@ -2211,6 +2349,7 @@
         this.reset();
         clearOpinionPhoto('before');
         clearOpinionPhoto('after');
+        autoGenerateNextCode();
 
         alert(`✅ [${currentTeamSession}] 종사자 의견이 등록되었으며, 위험성평가 리스트 및 2단계 상세 보고서(사진대지)에 사진과 함께 연동되었습니다.`);
         document.getElementById('opinionListContainer').scrollIntoView({ behavior: 'smooth' });
@@ -2334,6 +2473,7 @@
             renderOpinionList();
             renderStdTable();
             renderCmpCards();
+            autoGenerateNextCode();
         }
     }
 
