@@ -221,9 +221,8 @@
 
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem; }
         th { background-color: var(--bg-color); color: var(--text-muted); padding: 8px 6px; border-bottom: 2px solid var(--border); white-space: nowrap; }
-    /* 평가 항목 리스트: 머리글·긴 글이 줄바꿈되도록 해서 가로 스크롤바가 생기지 않게 함 (글자 크기는 그대로) */
-    .std-table th { white-space: normal; line-height: 1.3; }
-    .std-table td { overflow-wrap: anywhere; }
+        .std-table th { white-space: normal; line-height: 1.3; }
+        .std-table td { overflow-wrap: anywhere; }
         td { padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 
         .safety-cell-wrapper {
@@ -1019,7 +1018,6 @@
         if (savedCmp) cmpData = JSON.parse(savedCmp);
         if (savedOp) opinionList = JSON.parse(savedOp);
 
-        // 💡 기존 데이터에 코드번호가 없거나 비어있는 경우 팀별로 따로 자동 채번 (팀마다 001, 002...)
         stdData.forEach(i => { if (!i.team) i.team = '전기팀'; });
         fillMissingCodes();
 
@@ -1074,7 +1072,6 @@
                     cmpData = cmpData.filter(i => i.team !== currentTeamSession).concat(data.cmpData || []);
                     opinionList = opinionList.filter(i => i.team !== currentTeamSession).concat(data.opinionList || []);
 
-                    // 불러온 항목 중 코드번호가 없는 것 팀별로 자동 채번
                     fillMissingCodes();
 
                     saveToLocalStorage();
@@ -1090,7 +1087,6 @@
             });
     }
 
-    // 코드번호가 없는 평가항목에 팀별로 번호를 매김 (다른 팀 번호와 이어지지 않고, 그 팀의 가장 큰 번호 다음부터)
     function fillMissingCodes() {
         const maxByTeam = {};
         stdData.forEach(i => {
@@ -1105,7 +1101,6 @@
         });
     }
 
-    // 이미 이어진 번호로 매겨진 팀의 코드번호를 현재 번호 순서 그대로 001부터 다시 매김 (보고서의 코드번호도 함께 바꿈)
     function renumberTeamCodes() {
         if (isReadOnlyHistoryMode) { alert('⚠️ 과거 백업 조회 모드에서는 변경할 수 없습니다.'); return; }
         const items = stdData.filter(i => i.team === currentTeamSession);
@@ -1127,7 +1122,6 @@
         alert(`✅ [${currentTeamSession}] 코드번호를 001 ~ ${String(items.length).padStart(3, '0')}으로 다시 매겼습니다.`);
     }
 
-    // 💡 다음 코드 번호 자동 생성 함수 (001, 002 형식)
     function autoGenerateNextCode() {
         const filtered = stdData.filter(i => i.team === currentTeamSession);
         if (filtered.length === 0) {
@@ -1238,7 +1232,7 @@
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = async function(e) {
+        reader.onload = function(e) {
             try {
                 const imported = JSON.parse(e.target.result);
                 let importedStd = imported.stdData || [];
@@ -1426,22 +1420,26 @@
         }
     }
 
+    // 💡 수정된 부분: 오직 stdId 및 코드번호(code) 기준으로만 평가항목을 찾도록 함 (이름/작업명 유사성 매칭 제거)
     function findStdForCmp(c) {
+        if (c.stdId) {
+            const s = stdData.find(x => x.id === c.stdId);
+            if (s) return s;
+        }
         if (c.code) {
             const byCode = stdData.find(x => x.team === c.team && String(x.code || '').trim() === String(c.code).trim());
             if (byCode) return byCode;
         }
-        if (c.stdId) { 
-            const s = stdData.find(x => x.id === c.stdId); 
-            if (s) return s; 
-        }
-        return stdData.find(x => x.team === c.team && x.process === c.process && x.task === c.task) || null;
+        return null;
     }
 
     function cmpListForStd(stdId) {
+        const std = stdData.find(x => x.id === stdId);
         return cmpData.filter(c => { 
-            const s = findStdForCmp(c); 
-            return s && s.id === stdId; 
+            if (c.team !== (std ? std.team : currentTeamSession)) return false;
+            if (c.stdId && c.stdId === stdId) return true;
+            if (std && std.code && c.code && String(c.code).trim() === String(std.code).trim()) return true;
+            return false;
         });
     }
 
@@ -1492,12 +1490,11 @@
         renderStdTable();
     }
 
-    // 평가항목의 현재 위험점수: 미완료는 개선 전, 완료는 최신 완료보고서의 개선 후 점수
+    // 💡 수정된 부분: 오직 코드번호/stdId 기준으로 연동된 개선 후 보고서 점수를 반영하도록 엄격히 제한
     function getStdEffectiveRisk(item) {
         const reports = cmpData.filter(c => c.team === item.team && (
             c.stdId === item.id ||
-            (c.code && String(c.code).trim() === String(item.code || '').trim()) ||
-            (c.process === item.process && c.task === item.task)
+            (item.code && c.code && String(c.code).trim() === String(item.code).trim())
         ));
         const completedReport = reports.find(c => c.status === 'completed' || !!c.compDate);
         if (item.status === 'completed' && completedReport && Number.isFinite(Number(completedReport.fa)) && Number.isFinite(Number(completedReport.sa))) {
@@ -1669,9 +1666,7 @@
             cmpData.forEach(c => {
                 if (c.stdId === id || (c.code && c.code === stdData[idx].code)) {
                     c.stdId = id;
-                    c.process = stdData[idx].process;
                     c.code = stdData[idx].code;
-                    c.task = stdData[idx].task;
                 }
             });
 
@@ -1890,7 +1885,7 @@
         };
         reader.readAsArrayBuffer(file);
     }
-
+    
     const canvasData = {
         Before: { ctx: null, img: null, isDrawing: false, startX: 0, startY: 0, savedData: null, tool: 'rect', color: 'red', rotation: 0, scale: 1.0, shapes: [] },
         After:  { ctx: null, img: null, isDrawing: false, startX: 0, startY: 0, savedData: null, tool: 'rect', color: '#10b981', rotation: 0, scale: 1.0, shapes: [] }
