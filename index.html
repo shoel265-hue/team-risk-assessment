@@ -2342,7 +2342,20 @@
         const stdIdx = stdData.findIndex(s => s.opinionId === opId);
         let targetStdId = stdIdx > -1 ? stdData[stdIdx].id : (Date.now() + 100);
 
+        // 종사자 의견으로 생성되는 평가항목에도 팀별 코드번호를 즉시 부여
+        const nextOpinionCode = () => {
+            let maxNum = 0;
+            stdData.filter(item => item.team === currentTeamSession).forEach(item => {
+                const n = parseInt(String(item.code || '').trim(), 10);
+                if (Number.isFinite(n) && n > maxNum) maxNum = n;
+            });
+            return String(maxNum + 1).padStart(3, '0');
+        };
+        let opinionStdCode = stdIdx > -1 ? String(stdData[stdIdx].code || '').trim() : '';
+        if (!opinionStdCode || opinionStdCode === '-') opinionStdCode = nextOpinionCode();
+
         if (stdIdx > -1) {
+            stdData[stdIdx].code = opinionStdCode;
             stdData[stdIdx].process = process;
             stdData[stdIdx].task = '현장 종사자 제보';
             stdData[stdIdx].hazard = hazardText;
@@ -2355,7 +2368,7 @@
                 isOpinion: true,
                 team: currentTeamSession,
                 process: process,
-                code: '',
+                code: opinionStdCode,
                 task: '현장 종사자 제보',
                 hazard: hazardText,
                 result: '종사자 제보 유해·위험요인 발생',
@@ -2374,7 +2387,7 @@
             opinionId: opId,
             team: currentTeamSession,
             process: process,
-            code: '',
+            code: opinionStdCode,
             task: `종사자 제보 (${location})`,
             cause: `[종사자 제보] ${opinion} (작성자: ${worker})`,
             result: suggestion ? `[개선희망대책] ${suggestion}` : '현장 의견 반영 조치',
