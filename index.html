@@ -238,6 +238,7 @@
             text-overflow: ellipsis;
             display: -webkit-box;
             -webkit-line-clamp: 2;
+            line-clamp: 2;
             -webkit-box-orient: vertical;
             white-space: pre-wrap;
             font-size: 0.8rem;
@@ -395,6 +396,7 @@
                 overflow: visible !important;
                 display: block !important;
                 -webkit-line-clamp: unset !important;
+                line-clamp: unset !important;
                 white-space: pre-wrap !important;
             }
 
@@ -999,6 +1001,20 @@
         return { score, text: '저위험', bg: '#10b981', type: 'low' };
     }
 
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function getSafeRecordId(value) {
+        const id = Number(value);
+        return Number.isSafeInteger(id) ? id : null;
+    }
+
     function getStatusBadge(status) {
         if (status === 'completed') return '<span class="status-badge status-completed">조치 완료</span>';
         if (status === 'inprogress') return '<span class="status-badge status-inprogress">조치 진행중</span>';
@@ -1040,14 +1056,24 @@
         });
     }
 
+    function readStoredArray(key, currentValue) {
+        try {
+            const saved = localStorage.getItem(key);
+            if (!saved) return currentValue;
+
+            const parsed = JSON.parse(saved);
+            if (!Array.isArray(parsed)) throw new TypeError('저장 데이터 형식이 배열이 아닙니다.');
+            return parsed;
+        } catch (error) {
+            console.warn(`저장 데이터(${key})를 불러오지 못했습니다. 기존 데이터를 유지합니다.`, error);
+            return currentValue;
+        }
+    }
+
     function loadSavedData() {
-        const savedStd = localStorage.getItem('risk_stdData_v37');
-        const savedCmp = localStorage.getItem('risk_cmpData_v37');
-        const savedOp = localStorage.getItem('risk_opinionData_v37');
-        
-        if (savedStd) stdData = JSON.parse(savedStd);
-        if (savedCmp) cmpData = JSON.parse(savedCmp);
-        if (savedOp) opinionList = JSON.parse(savedOp);
+        stdData = readStoredArray('risk_stdData_v37', stdData);
+        cmpData = readStoredArray('risk_cmpData_v37', cmpData);
+        opinionList = readStoredArray('risk_opinionData_v37', opinionList);
 
         stdData.forEach(i => { if (!i.team) i.team = '전기팀'; });
         fillMissingCodes();
@@ -1059,18 +1085,20 @@
     }
 
     function saveToLocalStorage() {
-        if (isReadOnlyHistoryMode) return;
+        if (isReadOnlyHistoryMode) return false;
         try {
             localStorage.setItem('risk_stdData_v37', JSON.stringify(stdData));
             localStorage.setItem('risk_cmpData_v37', JSON.stringify(cmpData));
             localStorage.setItem('risk_opinionData_v37', JSON.stringify(opinionList));
+            return true;
         } catch (e) {
             console.warn("로컬 스토리지 용량 한계 주의:", e);
+            return false;
         }
     }
 
     async function saveToFirestore() {
-        if (isUpdatingFromRemote || isReadOnlyHistoryMode) return;
+        if (isUpdatingFromRemote || isReadOnlyHistoryMode) return false;
         try {
             const filteredStd = stdData.filter(i => i.team === currentTeamSession);
             const filteredCmp = cmpData.filter(i => i.team === currentTeamSession);
@@ -1084,8 +1112,10 @@
                 updatedAt: new Date().toISOString()
             });
             console.log(`[${currentTeamSession}] 클라우드 동기화 완료!`);
+            return true;
         } catch (error) {
             console.error("파이어스토어 저장 오류:", error);
+            return false;
         }
     }
 
@@ -1163,13 +1193,10 @@
         let maxNum = 0;
         filtered.forEach(item => {
             const codeNum = parseInt(item.code, 10);
-            if (!isNaN(codeNum) && codeNum > maxNum) {
-                maxNum = codeNum;
-            }
+            if (!isNaN(codeNum) && codeNum > maxNum) maxNum = codeNum;
         });
 
-        const nextNum = maxNum + 1;
-        const formattedCode = String(nextNum).padStart(3, '0');
+        const formattedCode = String(maxNum + 1).padStart(3, '0');
         document.getElementById('std_code').value = formattedCode;
     }
 
@@ -1230,9 +1257,18 @@
             alert('⚠️ 과거 백업 조회 모드에서는 클라우드 저장이 차단되었습니다.');
             return;
         }
-        saveToLocalStorage();
-        await saveToFirestore();
-        alert(`💾 [${currentTeamSession}] 모든 데이터가 전체 저장 및 클라우드에 연동되었습니다!`);
+        const localSaved = saveToLocalStorage();
+        const cloudSaved = await saveToFirestore();
+
+        if (localSaved && cloudSaved) {
+            alert(`💾 [${currentTeamSession}] 로컬 및 클라우드 저장이 완료되었습니다.`);
+        } else if (localSaved) {
+            alert('로컬에는 저장했지만 클라우드 저장에 실패했습니다. 네트워크와 Firebase 권한을 확인해 주세요.');
+        } else if (cloudSaved) {
+            alert('클라우드에는 저장했지만 이 브라우저의 로컬 저장에 실패했습니다.');
+        } else {
+            alert('로컬 및 클라우드 저장에 실패했습니다. 브라우저 저장 공간과 네트워크를 확인해 주세요.');
+        }
     }
 
     function handleUnifiedExport() {
@@ -1561,84 +1597,87 @@
             tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:30px; color:#94a3b8;">등록된 위험성평가 항목이 없습니다.</td></tr>';
         } else {
             filteredStd.forEach(item => {
+                const itemId = getSafeRecordId(item.id);
+                if (itemId === null) return;
+
                 const effectiveRisk = getStdEffectiveRisk(item);
                 const lvl = getMatrixLevel(effectiveRisk.f, effectiveRisk.s);
                 const isOp = item.isOpinion ? '<span class="tag-opinion">종사자의견</span>' : '';
-                const rptCount = cmpListForStd(item.id).length;
+                const rptCount = cmpListForStd(itemId).length;
 
-                if (editingRowId === item.id) {
+                if (editingRowId === itemId) {
                     tbody.innerHTML += `
-                        <tr style="background-color: #f0f9ff;" id="std_row_${item.id}">
-                            <td><input type="text" id="edit_proc_${item.id}" value="${item.process || ''}" class="inline-input"></td>
-                            <td><input type="text" id="edit_code_${item.id}" value="${item.code || ''}" class="inline-input"></td>
-                            <td><input type="text" id="edit_task_${item.id}" value="${item.task || ''}" class="inline-input"></td>
-                            <td><input type="text" id="edit_haz_${item.id}" value="${item.hazard || ''}" class="inline-input"></td>
-                            <td><input type="text" id="edit_res_${item.id}" value="${item.result || ''}" class="inline-input"></td>
+                        <tr style="background-color: #f0f9ff;" id="std_row_${itemId}">
+                            <td><input type="text" id="edit_proc_${itemId}" value="${escapeHtml(item.process)}" class="inline-input"></td>
+                            <td><input type="text" id="edit_code_${itemId}" value="${escapeHtml(item.code)}" class="inline-input"></td>
+                            <td><input type="text" id="edit_task_${itemId}" value="${escapeHtml(item.task)}" class="inline-input"></td>
+                            <td><input type="text" id="edit_haz_${itemId}" value="${escapeHtml(item.hazard)}" class="inline-input"></td>
+                            <td><input type="text" id="edit_res_${itemId}" value="${escapeHtml(item.result)}" class="inline-input"></td>
                             <td style="text-align:center;">
-                                <select id="edit_f_${item.id}" class="inline-select" onchange="updateInlineScore(${item.id})">
+                                <select id="edit_f_${itemId}" class="inline-select" onchange="updateInlineScore(${itemId})">
                                     ${[1,2,3,4,5].map(v => `<option value="${v}" ${item.f === v ? 'selected' : ''}>${v}</option>`).join('')}
                                 </select>
                             </td>
                             <td style="text-align:center;">
-                                <select id="edit_s_${item.id}" class="inline-select" onchange="updateInlineScore(${item.id})">
+                                <select id="edit_s_${itemId}" class="inline-select" onchange="updateInlineScore(${itemId})">
                                     ${[1,2,3,4].map(v => `<option value="${v}" ${item.s === v ? 'selected' : ''}>${v}</option>`).join('')}
                                 </select>
                             </td>
                             <td style="text-align:center;">
-                                <span id="edit_score_${item.id}" class="score-tag" style="background-color:${lvl.bg}">${lvl.score}</span>
+                                <span id="edit_score_${itemId}" class="score-tag" style="background-color:${lvl.bg}">${lvl.score}</span>
                             </td>
-                            <td><textarea id="edit_cur_${item.id}" class="inline-textarea">${item.currentMeasure || ''}</textarea></td>
-                            <td><input type="text" id="edit_plan_${item.id}" value="${item.plan || ''}" class="inline-input"></td>
+                            <td><textarea id="edit_cur_${itemId}" class="inline-textarea">${escapeHtml(item.currentMeasure)}</textarea></td>
+                            <td><input type="text" id="edit_plan_${itemId}" value="${escapeHtml(item.plan)}" class="inline-input"></td>
                             <td style="text-align:center;">
-                                <select id="edit_status_${item.id}" class="inline-select">
+                                <select id="edit_status_${itemId}" class="inline-select">
                                     <option value="pending" ${item.status === 'pending' ? 'selected' : ''}>검토 접수</option>
                                     <option value="inprogress" ${item.status === 'inprogress' ? 'selected' : ''}>조치 진행중</option>
                                     <option value="completed" ${item.status === 'completed' ? 'selected' : ''}>조치 완료</option>
                                 </select>
                             </td>
                             <td class="no-print" style="text-align:center;">
-                                <button onclick="saveInlineEdit(${item.id})" class="btn-outline" style="color:var(--success); border-color:var(--success); padding:4px 8px; margin-bottom:4px; display:block; width:100%;">저장</button>
+                                <button onclick="saveInlineEdit(${itemId})" class="btn-outline" style="color:var(--success); border-color:var(--success); padding:4px 8px; margin-bottom:4px; display:block; width:100%;">저장</button>
                                 <button onclick="cancelInlineEdit()" class="btn-outline" style="color:var(--text-muted); border-color:var(--border); padding:4px 8px; display:block; width:100%;">취소</button>
                             </td>
                         </tr>
                     `;
                 } else {
-                    const curMeasureText = item.currentMeasure || '-';
-                    const planText = item.plan || '-';
-                    const codeText = item.code ? `<span style="font-weight:bold; color:var(--secondary); background:#eff6ff; padding:2px 6px; border-radius:4px;">${item.code}</span>` : '-';
+                    const curMeasureText = escapeHtml(item.currentMeasure || '-');
+                    const planText = escapeHtml(item.plan || '-');
+                    const codeText = item.code ? `<span style="font-weight:bold; color:var(--secondary); background:#eff6ff; padding:2px 6px; border-radius:4px;">${escapeHtml(item.code)}</span>` : '-';
 
                     const reportBtnHtml = rptCount > 0 
-                        ? `<button onclick="goToReport(${item.id})" class="btn-outline btn-report-view no-print" style="padding:5px 7px; margin-bottom:3px; display:block; width:100%;">📄 보고서 ${rptCount}건 보기</button>` 
+                        ? `<button onclick="goToReport(${itemId})" class="btn-outline btn-report-view no-print" style="padding:5px 7px; margin-bottom:3px; display:block; width:100%;">📄 보고서 ${rptCount}건 보기</button>` 
                         : '';
 
                     tbody.innerHTML += `
-                        <tr id="std_row_${item.id}">
-                            <td><strong>${item.process || '-'}</strong></td>
+                        <tr id="std_row_${itemId}">
+                            <td><strong>${escapeHtml(item.process || '-')}</strong></td>
                             <td>${codeText}</td>
-                            <td>${item.task || '-'}</td>
-                            <td>${isOp}${item.hazard || '-'}</td>
-                            <td>${item.result || '-'}</td>
+                            <td>${escapeHtml(item.task || '-')}</td>
+                            <td>${isOp}${escapeHtml(item.hazard || '-')}</td>
+                            <td>${escapeHtml(item.result || '-')}</td>
                             <td style="text-align:center;">${effectiveRisk.f}</td>
                             <td style="text-align:center;">${effectiveRisk.s}</td>
                             <td style="text-align:center;"><span class="score-tag" style="background-color:${lvl.bg}">${lvl.score}</span></td>
                             <td>
                                 <div class="safety-cell-wrapper">
                                     <div class="safety-measure-summary">${curMeasureText}</div>
-                                    <button type="button" class="btn-view-detail no-print" onclick="openDetailModal(${item.id}, 'currentMeasure')">보기</button>
+                                    <button type="button" class="btn-view-detail no-print" onclick="openDetailModal(${itemId}, 'currentMeasure')">보기</button>
                                 </div>
                             </td>
                             <td>
                                 <div class="safety-cell-wrapper">
                                     <div class="safety-measure-summary">${planText}</div>
-                                    <button type="button" class="btn-view-detail no-print" onclick="openDetailModal(${item.id}, 'plan')">보기</button>
+                                    <button type="button" class="btn-view-detail no-print" onclick="openDetailModal(${itemId}, 'plan')">보기</button>
                                 </div>
                             </td>
                             <td style="text-align:center;">${getStatusBadge(item.status)}</td>
                             <td class="no-print" style="text-align:center; white-space:nowrap;">
                                 ${reportBtnHtml}
-                                <button onclick="fillCmpFormFromStd(${item.id})" class="btn-outline" style="color:#0f766e; border-color:#0f766e; padding:4px 6px; margin-bottom:2px; display:block; width:100%;">보고서작성</button>
-                                <button onclick="startInlineEdit(${item.id})" class="btn-outline" style="color:var(--secondary); border-color:var(--secondary); padding:4px 6px; margin-right:2px; display:inline-block; width:48%;">수정</button>
-                                <button onclick="delStd(${item.id})" class="btn-outline" style="color:var(--danger); border-color:var(--danger); padding:4px 6px; display:inline-block; width:48%;">삭제</button>
+                                <button onclick="fillCmpFormFromStd(${itemId})" class="btn-outline" style="color:#0f766e; border-color:#0f766e; padding:4px 6px; margin-bottom:2px; display:block; width:100%;">보고서작성</button>
+                                <button onclick="startInlineEdit(${itemId})" class="btn-outline" style="color:var(--secondary); border-color:var(--secondary); padding:4px 6px; margin-right:2px; display:inline-block; width:48%;">수정</button>
+                                <button onclick="delStd(${itemId})" class="btn-outline" style="color:var(--danger); border-color:var(--danger); padding:4px 6px; display:inline-block; width:48%;">삭제</button>
                             </td>
                         </tr>
                     `;
@@ -2157,35 +2196,39 @@
         const filteredCmp = cmpData.filter(i => i.team === currentTeamSession);
 
         filteredCmp.forEach(item => {
+            const itemId = getSafeRecordId(item.id);
+            if (itemId === null) return;
+
             const lb = getMatrixLevel(item.fb, item.sb); const la = getMatrixLevel(item.fa, item.sa);
             const linkedStd = findStdForCmp(item);
+            const linkedStdId = linkedStd ? getSafeRecordId(linkedStd.id) : null;
             const statusBadge = item.status === 'completed' ? `<span style="background:var(--success-light); color:#047857; border:1px solid var(--success);" class="badge">조치 완료</span>` : `<span style="background:var(--danger-light); color:#b91c1c; border:1px solid var(--danger);" class="badge">미조치</span>`;
             
-            const codeDisp = item.code ? `<span style="color:var(--secondary); font-weight:bold; margin-right:6px;">[${item.code}]</span>` : '';
-            const viewStdBtn = linkedStd 
-                ? `<button class="btn-outline no-print" onclick="goToStd(${linkedStd.id})" style="padding:4px 8px; font-size:0.8rem; border-color:#0369a1; color:#0369a1; background:#f0f9ff;">📋 평가항목 보기</button>` 
+            const codeDisp = item.code ? `<span style="color:var(--secondary); font-weight:bold; margin-right:6px;">[${escapeHtml(item.code)}]</span>` : '';
+            const viewStdBtn = linkedStdId !== null
+                ? `<button class="btn-outline no-print" onclick="goToStd(${linkedStdId})" style="padding:4px 8px; font-size:0.8rem; border-color:#0369a1; color:#0369a1; background:#f0f9ff;">📋 평가항목 보기</button>`
                 : '';
 
             list.innerHTML += `
-                <div class="report-card" id="cmp_card_${item.id}">
+                <div class="report-card" id="cmp_card_${itemId}">
                     <div class="report-header">
-                        <h3><span style="color:var(--primary); font-weight:900; margin-right:8px;">[${item.process}]</span> ${codeDisp}${item.task}</h3>
+                        <h3><span style="color:var(--primary); font-weight:900; margin-right:8px;">[${escapeHtml(item.process)}]</span> ${codeDisp}${escapeHtml(item.task)}</h3>
                         <div style="display:flex; gap:10px; align-items:center;">
                             ${statusBadge}
                             ${viewStdBtn}
-                            <button class="btn-outline no-print" onclick="editCmpCard(${item.id})" style="padding:4px 8px; font-size:0.8rem; border-color:var(--primary); color:var(--primary);">수정</button>
-                            <button class="btn-outline no-print" onclick="deleteCmpCard(${item.id})" style="padding:4px 8px; font-size:0.8rem; border-color:var(--danger); color:var(--danger);">삭제</button>
+                            <button class="btn-outline no-print" onclick="editCmpCard(${itemId})" style="padding:4px 8px; font-size:0.8rem; border-color:var(--primary); color:var(--primary);">수정</button>
+                            <button class="btn-outline no-print" onclick="deleteCmpCard(${itemId})" style="padding:4px 8px; font-size:0.8rem; border-color:var(--danger); color:var(--danger);">삭제</button>
                         </div>
                     </div>
                     <div class="report-images">
-                        <div class="report-img-box"><div class="report-img-title" style="color:var(--danger);">🔴 개선 전</div>${item.imgB ? `<img src="${item.imgB}">` : `<div style="height:150px; background:#f1f5f9; display:flex; align-items:center; justify-content:center; color:#94a3b8;">사진 미첨부</div>`}<div class="score-display" style="background:${lb.bg}">${lb.score}점 (${lb.text})</div><span class="matrix-detail">산출근거: 가능성 ${item.fb} × 중대성 ${item.sb}</span></div>
-                        <div class="report-img-box"><div class="report-img-title" style="color:var(--success);">🟢 개선 후</div>${item.imgA ? `<img src="${item.imgA}">` : `<div style="height:150px; background:#f1f5f9; display:flex; align-items:center; justify-content:center; color:#94a3b8;">사진 미첨부</div>`}<div class="score-display" style="background:${la.bg}">${la.score}점 (${la.text})</div><span class="matrix-detail">산출근거: 가능성 ${item.fa} × 중대성 ${item.sa}</span></div>
+                        <div class="report-img-box"><div class="report-img-title" style="color:var(--danger);">🔴 개선 전</div>${item.imgB ? `<img src="${escapeHtml(item.imgB)}">` : `<div style="height:150px; background:#f1f5f9; display:flex; align-items:center; justify-content:center; color:#94a3b8;">사진 미첨부</div>`}<div class="score-display" style="background:${lb.bg}">${lb.score}점 (${lb.text})</div><span class="matrix-detail">산출근거: 가능성 ${escapeHtml(item.fb)} × 중대성 ${escapeHtml(item.sb)}</span></div>
+                        <div class="report-img-box"><div class="report-img-title" style="color:var(--success);">🟢 개선 후</div>${item.imgA ? `<img src="${escapeHtml(item.imgA)}">` : `<div style="height:150px; background:#f1f5f9; display:flex; align-items:center; justify-content:center; color:#94a3b8;">사진 미첨부</div>`}<div class="score-display" style="background:${la.bg}">${la.score}점 (${la.text})</div><span class="matrix-detail">산출근거: 가능성 ${escapeHtml(item.fa)} × 중대성 ${escapeHtml(item.sa)}</span></div>
                     </div>
                     <div class="report-details">
-                        <div class="detail-pane"><div class="detail-item"><span class="detail-label">⚠️ 유해위험요인 (원인)</span><div class="detail-content">${item.cause.replace(/\n/g, '<br>')}</div></div></div>
-                        <div class="detail-pane"><div class="detail-item"><span class="detail-label">✅ 위험발생 상황 및 결과 (개선점)</span><div class="detail-content">${item.result.replace(/\n/g, '<br>')}</div></div></div>
+                        <div class="detail-pane"><div class="detail-item"><span class="detail-label">⚠️ 유해위험요인 (원인)</span><div class="detail-content">${escapeHtml(item.cause).replace(/\n/g, '<br>')}</div></div></div>
+                        <div class="detail-pane"><div class="detail-item"><span class="detail-label">✅ 위험발생 상황 및 결과 (개선점)</span><div class="detail-content">${escapeHtml(item.result).replace(/\n/g, '<br>')}</div></div></div>
                     </div>
-                    <div class="report-footer"><div class="measure-box"><span style="color:var(--primary); font-size:0.85rem; display:block; margin-bottom:4px;">🛡️ 최종 위험감소대책</span>${item.measure}</div><div style="font-size:0.85rem; color:var(--text-muted); text-align:right;"><p><strong>평가일자:</strong> ${item.evalDate.replace(/-/g,'.')}</p><p><strong>완료일자:</strong> ${item.compDate ? item.compDate.replace(/-/g,'.') : '미정'}</p></div></div>
+                    <div class="report-footer"><div class="measure-box"><span style="color:var(--primary); font-size:0.85rem; display:block; margin-bottom:4px;">🛡️ 최종 위험감소대책</span>${escapeHtml(item.measure)}</div><div style="font-size:0.85rem; color:var(--text-muted); text-align:right;"><p><strong>평가일자:</strong> ${escapeHtml(item.evalDate).replace(/-/g,'.')}</p><p><strong>완료일자:</strong> ${item.compDate ? escapeHtml(item.compDate).replace(/-/g,'.') : '미정'}</p></div></div>
                 </div>`;
         });
     }
@@ -2458,47 +2501,50 @@
         document.getElementById('op_statCompleted').innerText = filtered.filter(i => i.status === 'completed').length;
 
         if (filtered.length === 0) {
-            container.innerHTML = `<div style="text-align:center; padding:40px; color:#94a3b8; background:white; border-radius:8px; border:1px solid var(--border);">현재 [${currentTeamSession}]에 등록된 종사자 의견이 없습니다. 상단 양식에서 내용을 입력하고 등록해 주세요.</div>`;
+            container.innerHTML = `<div style="text-align:center; padding:40px; color:#94a3b8; background:white; border-radius:8px; border:1px solid var(--border);">현재 [${escapeHtml(currentTeamSession)}]에 등록된 종사자 의견이 없습니다. 상단 양식에서 내용을 입력하고 등록해 주세요.</div>`;
             return;
         }
 
         filtered.forEach(item => {
+            const itemId = getSafeRecordId(item.id);
+            if (itemId === null) return;
+
             container.innerHTML += `
                 <div class="opinion-card">
                     <div class="opinion-header">
                         <div>
-                            <strong style="color:#0f766e; font-size:1.05rem;">[${item.team}] ${item.process}</strong>
-                            <span style="color:var(--text-muted); font-size:0.85rem; margin-left:8px;">📍 ${item.location} | 👤 작성자: ${item.worker} (${item.date})</span>
+                            <strong style="color:#0f766e; font-size:1.05rem;">[${escapeHtml(item.team)}] ${escapeHtml(item.process)}</strong>
+                            <span style="color:var(--text-muted); font-size:0.85rem; margin-left:8px;">📍 ${escapeHtml(item.location)} | 👤 작성자: ${escapeHtml(item.worker)} (${escapeHtml(item.date)})</span>
                         </div>
                         <div style="display:flex; align-items:center; gap:8px;">
                             ${getStatusBadge(item.status)}
-                            <button class="btn-outline no-print" onclick="editOpinion(${item.id})" style="padding:4px 8px; font-size:0.75rem; border-color:#0f766e; color:#0f766e;">수정</button>
-                            <button class="btn-outline no-print" onclick="deleteOpinion(${item.id})" style="padding:4px 8px; font-size:0.75rem; color:var(--danger); border-color:var(--danger);">삭제</button>
+                            <button class="btn-outline no-print" onclick="editOpinion(${itemId})" style="padding:4px 8px; font-size:0.75rem; border-color:#0f766e; color:#0f766e;">수정</button>
+                            <button class="btn-outline no-print" onclick="deleteOpinion(${itemId})" style="padding:4px 8px; font-size:0.75rem; color:var(--danger); border-color:var(--danger);">삭제</button>
                         </div>
                     </div>
                     <div class="opinion-body">
                         <div class="opinion-photos">
                             <div class="opinion-photo-item">
                                 <span class="photo-tag" style="background:#fee2e2; color:#ef4444;">개선 전 (위험 상태)</span>
-                                ${item.imgBefore ? `<img src="${item.imgBefore}">` : '<div style="height:80px; display:flex; align-items:center; justify-content:center; color:#cbd5e1; font-size:0.8rem;">사진 없음</div>'}
+                                ${item.imgBefore ? `<img src="${escapeHtml(item.imgBefore)}">` : '<div style="height:80px; display:flex; align-items:center; justify-content:center; color:#cbd5e1; font-size:0.8rem;">사진 없음</div>'}
                             </div>
                             <div class="opinion-photo-item">
                                 <span class="photo-tag" style="background:#dcfce7; color:#047857;">개선 후 (조치 상태)</span>
-                                ${item.imgAfter ? `<img src="${item.imgAfter}">` : '<div style="height:80px; display:flex; align-items:center; justify-content:center; color:#cbd5e1; font-size:0.8rem;">사진 없음</div>'}
+                                ${item.imgAfter ? `<img src="${escapeHtml(item.imgAfter)}">` : '<div style="height:80px; display:flex; align-items:center; justify-content:center; color:#cbd5e1; font-size:0.8rem;">사진 없음</div>'}
                             </div>
                         </div>
                         <div class="opinion-content">
                             <div class="opinion-row">
                                 <div class="opinion-label">⚠️ 종사자 건의 및 유해위험 내용</div>
-                                <div class="opinion-text">${item.opinion}</div>
+                                <div class="opinion-text">${escapeHtml(item.opinion)}</div>
                             </div>
                             <div class="opinion-row">
                                 <div class="opinion-label">💡 근로자 희망 개선대책</div>
-                                <div class="opinion-text">${item.suggestion || '별도 제안사항 없음'}</div>
+                                <div class="opinion-text">${escapeHtml(item.suggestion || '별도 제안사항 없음')}</div>
                             </div>
                             <div class="opinion-row">
                                 <div class="opinion-label">🛡 관리자 검토 및 조치 결과 피드백</div>
-                                <div class="opinion-text" style="background: #f0fdfa; border-color:#99f6e4;">${item.feedback || '관리자 검토 대기 중'}</div>
+                                <div class="opinion-text" style="background: #f0fdfa; border-color:#99f6e4;">${escapeHtml(item.feedback || '관리자 검토 대기 중')}</div>
                             </div>
                         </div>
                     </div>
