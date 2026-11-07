@@ -349,15 +349,10 @@
         .btn-outline.pill-sky:hover   { background: #bae6fd !important; }
         .report-header .badge { border-radius: 8px; }
         .report-header .btn-outline.pill { border-radius: 8px !important; }
+        .btn-outline.std-action-teal { color: #0f766e; border-color: #14b8a6; }
+        .btn-outline.std-action-blue { color: #1d4ed8; border-color: #3b82f6; }
+        .btn-outline.std-action-red { color: #dc2626; border-color: #ef4444; }
 
-        .btn-outline.std-action-btn { border-radius: 8px; transition: background-color .15s ease; }
-        .btn-outline.std-action-teal { background: #e6fffa; border-color: #5eead4; color: #0f766e; }
-        .btn-outline.std-action-teal:hover { background: #ccfbf1; }
-        .btn-outline.std-action-blue { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
-        .btn-outline.std-action-blue:hover { background: #dbeafe; }
-        .btn-outline.std-action-red { background: #fff1f2; border-color: #fda4af; color: #dc2626; }
-        .btn-outline.std-action-red:hover { background: #fee2e2; }
-        
         .btn-report-view {
             color: #ffffff !important;
             border: none !important;
@@ -1763,9 +1758,9 @@
                             <td style="text-align:center;">${getStatusBadge(item.status)}</td>
                             <td class="no-print" style="text-align:center; white-space:nowrap;">
                                 ${reportBtnHtml}
-                                <button onclick="fillCmpFormFromStd(${itemId})" class="btn-outline std-action-btn std-action-teal" style="padding:4px 6px; margin-bottom:2px; display:block; width:100%;">보고서작성</button>
-                                <button onclick="startInlineEdit(${itemId})" class="btn-outline std-action-btn std-action-blue" style="padding:4px 6px; margin-right:2px; display:inline-block; width:48%;">수정</button>
-                                <button onclick="delStd(${itemId})" class="btn-outline std-action-btn std-action-red" style="padding:4px 6px; display:inline-block; width:48%;">삭제</button>
+                                <button onclick="fillCmpFormFromStd(${itemId})" class="btn-outline std-action-teal" style="padding:4px 6px; margin-bottom:2px; display:block; width:100%;">보고서작성</button>
+                                <button onclick="startInlineEdit(${itemId})" class="btn-outline std-action-blue" style="padding:4px 6px; margin-right:2px; display:inline-block; width:48%;">수정</button>
+                                <button onclick="delStd(${itemId})" class="btn-outline std-action-red" style="padding:4px 6px; display:inline-block; width:48%;">삭제</button>
                             </td>
                         </tr>
                     `;
